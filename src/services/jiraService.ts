@@ -58,7 +58,7 @@ export class JiraService {
         redirectUri: `${window.location.origin}/jira/callback`
       };
 
-      sessionStorage.setItem(this.OAUTH_STATE_KEY, JSON.stringify(oauthState));
+      sessionStorage.setItem(JiraService.OAUTH_STATE_KEY, JSON.stringify(oauthState));
 
       // Call our backend to initiate OAuth
       const response = await apiService.initiateJiraAuth(oauthState.redirectUri);
@@ -88,7 +88,7 @@ export class JiraService {
       }
 
       // Validate state parameter
-      const storedStateData = sessionStorage.getItem(this.OAUTH_STATE_KEY);
+      const storedStateData = sessionStorage.getItem(JiraService.OAUTH_STATE_KEY);
       if (!storedStateData) {
         throw new Error('Invalid OAuth state - no stored state found');
       }
@@ -122,7 +122,7 @@ export class JiraService {
       const result = await response.json();
 
       // Clean up stored state
-      sessionStorage.removeItem(this.OAUTH_STATE_KEY);
+      sessionStorage.removeItem(JiraService.OAUTH_STATE_KEY);
 
       return {
         username: result.username || 'Unknown User',
@@ -131,7 +131,7 @@ export class JiraService {
 
     } catch (error) {
       // Clean up on error
-      sessionStorage.removeItem(this.OAUTH_STATE_KEY);
+      sessionStorage.removeItem(JiraService.OAUTH_STATE_KEY);
       console.error('OAuth callback failed:', error);
       throw error;
     }

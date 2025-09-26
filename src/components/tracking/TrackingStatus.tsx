@@ -145,7 +145,7 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
         </div>
 
         {/* Quick Stats */}
-        {status && (
+        {status && status.weekTotal && status.todayTotal && (
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-card-border">
             <div className="text-center space-y-1">
               <p className="text-xs text-muted-foreground">This Week</p>

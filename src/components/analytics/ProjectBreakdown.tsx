@@ -117,7 +117,7 @@ export const ProjectBreakdown = ({
 
         {/* Project List */}
         <div className="space-y-3">
-          {data
+          {[...data]
             .sort((a, b) => b.hours - a.hours)
             .map((project, index) => {
               const percentage = ((project.hours / totalHours) * 100).toFixed(1);

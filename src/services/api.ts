@@ -112,7 +112,7 @@ class ApiService {
     return this.request<JiraAuthStartResponse>('/v1/jira/auth/start');
   }
 
-  async initiateJiraAuth(returnUrl: string): Promise<{ authUrl: string }> {
+  async initiateJiraAuth(returnUrl: string): Promise<{ authUrl?: string; authorization_url?: string }> {
     return this.request('/v1/jira/auth/initiate', {
       method: 'POST',
       body: JSON.stringify({ returnUrl }),

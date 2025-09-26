@@ -33,13 +33,13 @@ export const useTimeStore = create<TimeState>((set, get) => ({
   isLoading: true,
   lastUpdate: null,
 
-  setStatus: (status) => set({ 
+  setStatus: (status) => set({
     status,
-    isTracking: status.isTracking,
+    isTracking: status.isTracking || false,
     activeTask: status.activeTask || null,
     activeSince: status.activeSince ? new Date(status.activeSince) : null,
-    todayTotal: status.todayTotal.seconds,
-    weekTotal: status.weekTotal.seconds,
+    todayTotal: status.todayTotal?.seconds || 0,
+    weekTotal: status.weekTotal?.seconds || 0,
     lastUpdate: new Date(),
   }),
 

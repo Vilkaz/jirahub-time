@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { Clock, User, Settings, LogOut, Zap, CheckCircle } from 'lucide-react';
+import { Clock, User, Settings, LogOut, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/button';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '../ui/dropdown-menu';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { config } from '../../config/env';
 import { useAuthStore } from '../../stores/authStore';
+import { useJiraStore } from '../../stores/jiraStore';
+import { JiraConnectionButton } from '../jira/JiraConnectionButton';
 import { cn } from '../../lib/utils';
 
 interface HeaderProps {
@@ -20,6 +22,7 @@ interface HeaderProps {
 
 export const Header = ({ className }: HeaderProps) => {
   const { user, logout } = useAuthStore();
+  const { connection } = useJiraStore();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update clock every second
@@ -82,14 +85,8 @@ export const Header = ({ className }: HeaderProps) => {
           <div className="flex items-center space-x-4">
             {/* Jira Connection Status */}
             <div className="hidden sm:flex items-center space-x-2">
-              <Badge 
-                variant="outline" 
-                className="text-xs flex items-center space-x-1"
-              >
-                <Zap className="h-3 w-3" />
-                <span>Jira Connected</span>
-              </Badge>
-              <Badge 
+              <JiraConnectionButton variant="button" showStatus={true} />
+              <Badge
                 variant="outline"
                 className="text-xs flex items-center space-x-1"
               >

@@ -3,7 +3,7 @@ import { TrackingStatus } from '../components/tracking/TrackingStatus';
 import { TaskList } from '../components/tasks/TaskList';
 import { TimeChart } from '../components/analytics/TimeChart';
 import { ProjectBreakdown } from '../components/analytics/ProjectBreakdown';
-import { ReportsSection } from '../components/analytics/ReportsSection';
+import { ReportsView } from '../components/reports/ReportsView';
 import { useTimeTracking, useTasks } from '../hooks/useTimeTracking';
 import { useTimeStore } from '../stores/timeStore';
 import { Task } from '../types/api';
@@ -134,7 +134,9 @@ export const Dashboard = () => {
           </section>
 
           {/* Reports Section */}
-          <ReportsSection />
+          <section className="space-y-4">
+            <ReportsView />
+          </section>
         </div>
       </main>
     </div>

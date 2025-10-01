@@ -7,6 +7,9 @@ import { cn } from '../../lib/utils';
 import { useTasks } from '../../hooks/useTimeTracking';
 import { useTimeStore } from '../../stores/timeStore';
 import { formatDate, getCurrentWeekDates } from '../../utils/timeCalculations';
+import { DateRangePickerAdvanced, DateRangePreset } from '../ui/date-range-picker-advanced';
+import { DateRange } from 'react-day-picker';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, format as formatDateFns } from 'date-fns';
 
 interface TimeChartProps {
   className?: string;
@@ -16,6 +19,18 @@ export const TimeChart = ({ className }: TimeChartProps) => {
   const { data: tasksData, isLoading } = useTasks();
   const { isTracking, activeSince, activeTask } = useTimeStore();
   const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Initialize with current week
+  const initialRange: DateRange = {
+    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+    to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+  };
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(initialRange);
+
+  const handleDateRangeChange = (range: DateRange | undefined, preset: DateRangePreset) => {
+    setDateRange(range);
+    console.log('Date range changed:', { range, preset });
+  };
 
   // Update current time every second when tracking (for real-time chart updates)
   useEffect(() => {
@@ -27,19 +42,33 @@ export const TimeChart = ({ className }: TimeChartProps) => {
     }
   }, [isTracking]);
 
-  // Calculate current week data (Monday-Sunday) from tracked_time
+  // Calculate data for selected date range from tracked_time
   const calculateWeekData = () => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const weekData: Array<{ day: string; hours: number; date: string }> = [];
 
-    // Get current week dates (Monday-Sunday)
-    const weekDates = getCurrentWeekDates();
-    weekDates.forEach(date => {
+    // If no date range selected, return empty data
+    if (!dateRange?.from || !dateRange?.to) {
+      return weekData;
+    }
+
+    // Get all dates in the selected range
+    const rangeDates = eachDayOfInterval({
+      start: dateRange.from,
+      end: dateRange.to,
+    });
+
+    rangeDates.forEach(date => {
       const dateStr = formatDate(date);
       const dayName = days[date.getDay()];
 
+      // For short ranges (<=7 days), show day names, otherwise show date
+      const displayLabel = rangeDates.length <= 7
+        ? dayName
+        : formatDateFns(date, 'MM/dd');
+
       weekData.push({
-        day: dayName,
+        day: displayLabel,
         hours: 0,
         date: dateStr,
       });
@@ -58,7 +87,7 @@ export const TimeChart = ({ className }: TimeChartProps) => {
       });
     });
 
-    // Add current active session time to today (if today is in current week)
+    // Add current active session time to today (if today is in selected range)
     if (isTracking && activeSince && activeTask) {
       const todayStr = formatDate(new Date());
       const todayEntry = weekData.find(d => d.date === todayStr);
@@ -123,10 +152,7 @@ export const TimeChart = ({ className }: TimeChartProps) => {
             <TrendingUp className="h-5 w-5" />
             <span>Weekly Overview</span>
           </CardTitle>
-          <Badge variant="outline" className="text-xs flex items-center space-x-1">
-            <Calendar className="h-3 w-3" />
-            <span>Current Week</span>
-          </Badge>
+          <DateRangePickerAdvanced value={dateRange} onChange={handleDateRangeChange} />
         </div>
       </CardHeader>
       

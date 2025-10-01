@@ -7,6 +7,9 @@ import { cn } from '../../lib/utils';
 import { useTasks } from '../../hooks/useTimeTracking';
 import { useTimeStore } from '../../stores/timeStore';
 import { calculateWeekTotal, formatDate } from '../../utils/timeCalculations';
+import { DateRangePickerAdvanced, DateRangePreset } from '../ui/date-range-picker-advanced';
+import { DateRange } from 'react-day-picker';
+import { startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
 interface ProjectBreakdownProps {
   className?: string;
@@ -28,6 +31,18 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
   const { isTracking, activeSince, activeTask } = useTimeStore();
   const [currentTime, setCurrentTime] = useState(Date.now());
 
+  // Initialize with current week
+  const initialRange: DateRange = {
+    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+    to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+  };
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(initialRange);
+
+  const handleDateRangeChange = (range: DateRange | undefined, preset: DateRangePreset) => {
+    setDateRange(range);
+    console.log('Date range changed:', { range, preset });
+  };
+
   // Update current time every second when tracking (for real-time updates)
   useEffect(() => {
     if (isTracking) {
@@ -38,7 +53,7 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
     }
   }, [isTracking]);
 
-  // Calculate task breakdown for current week
+  // Calculate task breakdown for selected date range
   const calculateTaskBreakdown = () => {
     const tasks = tasksData?.tasks || [];
     const taskData: Array<{
@@ -48,44 +63,67 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
       color: string;
     }> = [];
 
+    // If no date range selected, return empty data
+    if (!dateRange?.from || !dateRange?.to) {
+      return taskData;
+    }
+
+    // Get all dates in the selected range
+    const rangeDates = eachDayOfInterval({
+      start: dateRange.from,
+      end: dateRange.to,
+    });
+    const rangeDateStrs = new Set(rangeDates.map(d => formatDate(d)));
+
     console.log('📊 === PROJECT BREAKDOWN CALCULATION ===');
     console.log('📊 Total tasks:', tasks.length);
+    console.log('📊 Date range:', dateRange.from, 'to', dateRange.to);
+    console.log('📊 Range includes', rangeDateStrs.size, 'days');
 
     tasks.forEach((task, index) => {
       const trackedTime = task.tracked_time || {};
-      const weekSeconds = calculateWeekTotal(trackedTime);
-      let weekHours = weekSeconds / 3600; // Convert seconds to hours
 
-      console.log(`📊 Task ${task.key}:`, {
-        trackedTime,
-        weekSeconds,
-        weekHours: weekHours.toFixed(2),
-        totalSeconds: task.totalSeconds || 0,
+      // Sum seconds only for dates in the selected range
+      let rangeSeconds = 0;
+      Object.entries(trackedTime).forEach(([dateStr, seconds]) => {
+        if (rangeDateStrs.has(dateStr)) {
+          rangeSeconds += seconds;
+        }
       });
 
-      // Add current session time if this is the active task
+      let rangeHours = rangeSeconds / 3600; // Convert seconds to hours
+
+      console.log(`📊 Task ${task.key}:`, {
+        rangeSeconds,
+        rangeHours: rangeHours.toFixed(2),
+      });
+
+      // Add current session time if this is the active task and today is in range
       if (isTracking && activeTask?.taskId === task.taskId && activeSince) {
-        const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
-        const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
-        weekHours += currentSessionSeconds / 3600;
-        console.log(`📊   Active task - adding ${currentSessionSeconds}s from current session`);
+        const todayStr = formatDate(new Date());
+        if (rangeDateStrs.has(todayStr)) {
+          const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
+          const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
+          rangeHours += currentSessionSeconds / 3600;
+          console.log(`📊   Active task - adding ${currentSessionSeconds}s from current session`);
+        }
       }
 
-      // Only include tasks with time tracked this week
-      if (weekHours > 0) {
-        console.log(`📊   ✅ Including task (${weekHours.toFixed(2)}h)`);
+      // Only include tasks with time tracked in selected range
+      if (rangeHours > 0) {
+        console.log(`📊   ✅ Including task (${rangeHours.toFixed(2)}h)`);
         taskData.push({
           taskKey: task.key,
           taskTitle: task.title,
-          hours: weekHours,
+          hours: rangeHours,
           color: COLORS[index % COLORS.length],
         });
       } else {
-        console.log(`📊   ❌ Skipping task (0 hours this week)`);
+        console.log(`📊   ❌ Skipping task (0 hours in range)`);
       }
     });
 
-    console.log('📊 Tasks with time this week:', taskData.length);
+    console.log('📊 Tasks with time in range:', taskData.length);
     console.log('📊 =====================================');
 
     // Sort by hours descending
@@ -144,10 +182,7 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
             <ListChecks className="h-5 w-5" />
             <span>Task Breakdown</span>
           </CardTitle>
-          <Badge variant="outline" className="text-xs flex items-center space-x-1">
-            <Clock className="h-3 w-3" />
-            <span>Current Week</span>
-          </Badge>
+          <DateRangePickerAdvanced value={dateRange} onChange={handleDateRangeChange} />
         </div>
       </CardHeader>
       

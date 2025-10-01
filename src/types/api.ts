@@ -159,3 +159,27 @@ export interface ProjectTimeData {
   hours: number;
   taskCount: number;
 }
+
+// Report Types
+export interface DailyReportEntry {
+  taskKey: string;
+  taskTitle: string;
+  sapProjectId?: string;
+  sapProjectName?: string;
+  date: string; // YYYY-MM-DD format
+  hours: number;
+}
+
+export interface ReportRequest {
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  format: 'json' | 'csv';
+}
+
+export interface ReportResponse {
+  entries: DailyReportEntry[];
+  startDate: string;
+  endDate: string;
+  totalHours: number;
+  totalDays: number;
+}

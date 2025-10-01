@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, ExternalLink, Search, Filter, Clock, Timer, Calendar, CalendarDays } from 'lucide-react';
+import { Play, ExternalLink, Search, Filter, Clock, Timer, Calendar, CalendarDays, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,6 +10,8 @@ import { useTimeStore } from '../../stores/timeStore';
 import { Task } from '../../types/api';
 import { cn } from '../../lib/utils';
 import { calculateTodayTotal, calculateWeekTotal, formatHours } from '../../utils/timeCalculations';
+import { EditTaskDialog } from './EditTaskDialog';
+import { apiClient } from '../../lib/api';
 
 interface TaskListProps {
   className?: string;
@@ -17,11 +19,12 @@ interface TaskListProps {
 }
 
 export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
-  const { data: tasksData, isLoading, error } = useTasks();
+  const { data: tasksData, isLoading, error, refetch } = useTasks();
   const { activeTask, isTracking, activeSince } = useTimeStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPriority, setSelectedPriority] = useState<string>('');
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const tasks = tasksData?.tasks || [];
 
@@ -86,6 +89,28 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
 
   const handleStartTask = (task: Task) => {
     onTaskSelect?.(task);
+  };
+
+  const handleSaveTask = async (taskId: string, sessions: Array<{ date: string; hours: number; minutes: number }>) => {
+    // Convert sessions back to tracked_time format
+    const tracked_time: Record<string, number> = {};
+
+    sessions.forEach(session => {
+      // Convert ISO date (2025-10-01) to DD.MM.YYYY format
+      const [year, month, day] = session.date.split('-');
+      const dateKey = `${day}.${month}.${year}`;
+      const totalSeconds = session.hours * 3600 + session.minutes * 60;
+
+      if (totalSeconds > 0) {
+        tracked_time[dateKey] = totalSeconds;
+      }
+    });
+
+    // Call API to update task
+    await apiClient.put(`/v1/tasks/${taskId}`, { tracked_time });
+
+    // Refetch tasks to get updated data
+    refetch();
   };
 
   const formatTrackedTime = (seconds?: number, isActive?: boolean) => {
@@ -292,11 +317,21 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setEditingTask(task)}
+                    title="Edit time sessions"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground"
                     onClick={() => window.open(task.url, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4" />
                   </Button>
-                  
+
                   {!isActiveTask(task) && (
                     <Button
                       size="sm"
@@ -308,7 +343,7 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                       Start
                     </Button>
                   )}
-                  
+
                   {isActiveTask(task) && (
                     <Badge variant="default" className="text-xs">
                       Active
@@ -320,6 +355,15 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
           ))
         )}
       </CardContent>
+
+      {editingTask && (
+        <EditTaskDialog
+          task={editingTask}
+          open={!!editingTask}
+          onOpenChange={(open) => !open && setEditingTask(null)}
+          onSave={handleSaveTask}
+        />
+      )}
     </Card>
   );
 };

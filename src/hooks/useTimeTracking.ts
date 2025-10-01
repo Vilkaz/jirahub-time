@@ -9,11 +9,21 @@ export const useTimeTracking = () => {
   const queryClient = useQueryClient();
   const { setStatus, setLoading, updateElapsedTime } = useTimeStore();
 
-  // Polling query for current status
+  // Initial status query - ONLY on page load, no polling
   const { data: status, isLoading, error } = useQuery({
     queryKey: ['tracking-status'],
-    queryFn: () => apiService.getStatus(),
-    refetchInterval: config.STATUS_POLL_INTERVAL,
+    queryFn: async () => {
+      const data = await apiService.getStatus();
+      console.log('📊 STATUS LOADED:', {
+        isTracking: data.isTracking,
+        activeTask: data.activeTask?.taskId,
+        todayTotal: data.todayTotal?.seconds
+      });
+      return data;
+    },
+    staleTime: Infinity, // Never auto-refetch
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Don't refetch on component mount
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
@@ -26,26 +36,34 @@ export const useTimeTracking = () => {
     setLoading(isLoading);
   }, [status, isLoading, setStatus, setLoading]);
 
-  // Live timer updates
-  useEffect(() => {
-    if (status?.isTracking) {
-      const interval = setInterval(() => {
-        updateElapsedTime();
-      }, config.TIMER_UPDATE_INTERVAL);
-
-      return () => clearInterval(interval);
-    }
-  }, [status?.isTracking, updateElapsedTime]);
+  // No live timer updates - the timer components handle their own display updates
 
   // Start tracking mutation
   const startMutation = useMutation({
-    mutationFn: (taskId: string) => apiService.startTracking(taskId),
+    mutationFn: ({ taskId, jiraUrl, jiraTitle }: { taskId: string; jiraUrl?: string; jiraTitle?: string }) =>
+      apiService.startTracking(taskId, jiraUrl, jiraTitle),
     onSuccess: (data) => {
-      setStatus(data.status);
-      queryClient.invalidateQueries({ queryKey: ['tracking-status'] });
+      console.log('📍 Start tracking response:', data);
+
+      // Force refetch tasks to show updated times (previous task's time needs updating)
+      queryClient.refetchQueries({ queryKey: ['tasks'] });
+
+      // Update store immediately with returned tracking state (event-driven)
+      if (data.trackingState) {
+        setStatus({
+          userId: data.trackingState.activeTask?.taskId || '',
+          isTracking: data.trackingState.isTracking,
+          activeTask: data.trackingState.activeTask,
+          activeSince: data.trackingState.activeSince,
+          todayTotal: { seconds: 0, hours: 0 },
+          weekTotal: { seconds: 0, hours: 0 },
+          monthTotal: { seconds: 0, hours: 0 }
+        });
+      }
+
       toast({
         title: "Time tracking started",
-        description: `Started tracking on ${data.status.activeTask?.key}`,
+        description: data.message || `Started tracking ${data.taskId}`,
       });
     },
     onError: (error) => {
@@ -61,19 +79,55 @@ export const useTimeTracking = () => {
   const stopMutation = useMutation({
     mutationFn: () => apiService.stopTracking(),
     onSuccess: (data) => {
-      setStatus(data.status);
-      queryClient.invalidateQueries({ queryKey: ['tracking-status'] });
+      console.log('📍 Stop tracking response:', data);
+
+      // Force refetch tasks to show updated times
+      queryClient.refetchQueries({ queryKey: ['tasks'] });
+
+      // Update store immediately with returned tracking state (event-driven)
+      if (data.trackingState) {
+        setStatus({
+          userId: '',
+          isTracking: data.trackingState.isTracking,
+          activeTask: data.trackingState.activeTask,
+          activeSince: data.trackingState.activeSince,
+          todayTotal: { seconds: 0, hours: 0 },
+          weekTotal: { seconds: 0, hours: 0 },
+          monthTotal: { seconds: 0, hours: 0 }
+        });
+      }
+
       toast({
         title: "Time tracking stopped",
-        description: "Your time has been logged successfully",
+        description: data.message || "Your time has been logged successfully",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Failed to stop tracking",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.log('📍 Stop tracking error:', error);
+
+      // If "no active session", just clear the frontend state anyway
+      if (error.message?.includes('No active tracking session')) {
+        setStatus({
+          userId: '',
+          isTracking: false,
+          activeTask: null,
+          activeSince: null,
+          todayTotal: { seconds: 0, hours: 0 },
+          weekTotal: { seconds: 0, hours: 0 },
+          monthTotal: { seconds: 0, hours: 0 }
+        });
+
+        toast({
+          title: "Time tracking stopped",
+          description: "Tracking was already stopped",
+        });
+      } else {
+        toast({
+          title: "Failed to stop tracking",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -91,8 +145,15 @@ export const useTimeTracking = () => {
 export const useTasks = () => {
   return useQuery({
     queryKey: ['tasks'],
-    queryFn: () => apiService.getTasks(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryFn: async () => {
+      const data = await apiService.getTasks();
+      const taskTimes = data.tasks?.map(t => `${t.key}: ${t.totalSeconds}s`).join(', ');
+      console.log('📋 TASKS LOADED WITH TIMES:', taskTimes);
+      return data;
+    },
+    staleTime: Infinity, // Never auto-refetch - only fetch on user action
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Don't refetch on component mount
     retry: 2,
   });
 };

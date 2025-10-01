@@ -17,17 +17,19 @@ class ApiService {
   }
 
   private async request<T>(
-    endpoint: string, 
+    endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     const token = this.getAuthToken();
-    
+    const sessionToken = this.getSessionToken();
+
     const url = `${this.baseURL}${endpoint}`;
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
+        ...(sessionToken && { 'X-Session-Token': sessionToken }), // Send session token in header
         ...options.headers,
       },
       credentials: 'include',
@@ -55,6 +57,14 @@ class ApiService {
     return null;
   }
 
+  private getSessionToken(): string | null {
+    // Get session token from cookie (same logic as auth service)
+    return document.cookie
+      .split('; ')
+      .find(row => row.startsWith('session_token='))
+      ?.split('=')[1] || null;
+  }
+
   private generateIdempotencyKey(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
@@ -70,10 +80,12 @@ class ApiService {
   }
 
   // Time Tracking Events
-  async startTracking(taskId: string): Promise<EventResponse> {
-    const eventData: EventRequest = {
+  async startTracking(taskId: string, jiraUrl?: string, jiraTitle?: string): Promise<EventResponse> {
+    const eventData = {
       action: 'start',
       taskId,
+      jiraUrl,
+      jiraTitle,
       timestamp: new Date().toISOString(),
     };
 

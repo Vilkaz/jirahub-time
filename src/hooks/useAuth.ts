@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import authService, { UserProfile, AuthResponse } from '../services/authService';
+import { useJiraStore } from '../stores/jiraStore';
 
 export type AuthStatus = 'checking' | 'logged_out' | 'logged_in';
 
@@ -27,6 +28,8 @@ export function useAuth(): AuthHook {
     error: null,
   });
 
+  const { setConnection, disconnect } = useJiraStore();
+
   const checkAuth = async () => {
     console.log('🔍 useAuth: Checking authentication status...');
 
@@ -42,6 +45,18 @@ export function useAuth(): AuthHook {
           user: response.userInfo,
           error: null,
         });
+
+        // Sync Jira connection status with auth data
+        if (response.userInfo.jira_connected) {
+          setConnection({
+            isConnected: true,
+            instanceUrl: 'https://kukanauskas.atlassian.net', // You may want to get this from backend
+            username: response.userInfo.name || response.userInfo.email,
+            lastSync: new Date().toISOString()
+          });
+        } else {
+          disconnect();
+        }
       } else {
         console.log('❌ useAuth: User is not authenticated');
         setAuthState({
@@ -49,6 +64,9 @@ export function useAuth(): AuthHook {
           user: null,
           error: response.error || 'Not logged in',
         });
+
+        // Clear Jira connection when not authenticated
+        disconnect();
       }
     } catch (error) {
       console.error('❌ useAuth: Auth check failed:', error);
@@ -57,6 +75,9 @@ export function useAuth(): AuthHook {
         user: null,
         error: 'Authentication check failed',
       });
+
+      // Clear Jira connection on error
+      disconnect();
     }
   };
 
@@ -90,6 +111,9 @@ export function useAuth(): AuthHook {
         user: null,
         error: null,
       });
+
+      // Clear Jira connection on logout
+      disconnect();
     } catch (error) {
       console.error('❌ useAuth: Logout failed:', error);
       // Still set as logged out even if API call failed
@@ -98,6 +122,9 @@ export function useAuth(): AuthHook {
         user: null,
         error: null,
       });
+
+      // Clear Jira connection even on logout error
+      disconnect();
     }
   };
 

@@ -4,11 +4,10 @@
  */
 
 export interface UserProfile {
-  user_id: string;
+  id: string;
+  email: string;
+  name: string;
   jira_connected: boolean;
-  jira_instance_url?: string;
-  session_expires: number;
-  login_time: number;
 }
 
 export interface AuthResponse {
@@ -34,88 +33,77 @@ class AuthService {
     return AuthService.instance;
   }
 
+
   /**
-   * Get session token from localStorage or cookie
+   * Check if user is currently logged in (server-driven session via HttpOnly cookie)
    */
-  private getSessionToken(): string | null {
-    // Try localStorage first (for cross-domain support)
-    const localToken = localStorage.getItem('session_token');
-    if (localToken) {
-      console.log('📱 Found session token in localStorage');
-      return localToken;
-    }
-
-    // Fallback to cookie (for same-domain production)
-    const cookieMatch = document.cookie.match(/session_token=([^;]+)/);
-    if (cookieMatch) {
-      console.log('🍪 Found session token in cookie');
-      return cookieMatch[1];
-    }
-
-    return null;
+  private getSessionTokenFromCookie(): string | null {
+    return document.cookie
+      .split('; ')
+      .find(row => row.startsWith('session_token='))
+      ?.split('=')[1] || null;
   }
 
-  /**
-   * Store session token in localStorage
-   */
-  private storeSessionToken(token: string): void {
-    localStorage.setItem('session_token', token);
-    console.log('💾 Stored session token in localStorage');
-  }
-
-  /**
-   * Clear session token from storage
-   */
-  private clearSessionToken(): void {
-    localStorage.removeItem('session_token');
-    console.log('🗑️ Cleared session token from localStorage');
-  }
-
-  /**
-   * Check if user is currently logged in (has valid session + Jira tokens)
-   */
   async checkLoginStatus(): Promise<AuthResponse> {
     try {
-      console.log('🔍 Checking login status...');
+      console.log('🔍 [AUTH] Starting login status check...');
+      console.log('🌐 [AUTH] API Base URL:', this.baseUrl);
+      console.log('🍪 [AUTH] All cookies:', document.cookie);
 
-      const sessionToken = this.getSessionToken();
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      // Send session token as Authorization header if available
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
+      // Get session token from cookie
+      const sessionToken = this.getSessionTokenFromCookie();
+      if (!sessionToken) {
+        console.log('❌ [AUTH] No session token found in cookies');
+        console.log('🍪 [AUTH] Available cookies:', document.cookie.split('; '));
+        return { loggedIn: false, error: 'No session token' };
       }
 
-      const response = await fetch(`${this.baseUrl}/v1/auth/check`, {
-        method: 'GET',
-        credentials: 'include', // Still include cookies for fallback
-        headers,
+      console.log('🍪 [AUTH] Found session token in cookie:', sessionToken.substring(0, 8) + '...');
+      console.log('📤 [AUTH] Preparing POST request to:', `${this.baseUrl}/v1/session/me`);
+
+      const requestBody = { session_token: sessionToken };
+      console.log('📋 [AUTH] Request body:', requestBody);
+
+      const response = await fetch(`${this.baseUrl}/v1/session/me`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📨 [AUTH] Response status:', response.status);
+      console.log('📨 [AUTH] Response headers:', Object.fromEntries(response.headers.entries()));
+
       const data = await response.json();
+      console.log('📦 [AUTH] Response data:', data);
 
       if (data.loggedIn) {
-        console.log('✅ User is logged in:', data.userInfo);
+        console.log('✅ [AUTH] User is logged in:', data.user);
         return {
           loggedIn: true,
-          userInfo: data.userInfo
+          userInfo: {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            jira_connected: data.user.jira_connected
+          }
         };
       } else {
-        console.log('❌ User is not logged in:', data.error);
-        // Clear invalid token
-        this.clearSessionToken();
+        console.log('❌ [AUTH] User is not logged in');
+        console.log('📄 [AUTH] Server response indicates not logged in:', data);
         return {
           loggedIn: false,
-          error: data.error || 'Not authenticated'
+          error: 'Not authenticated'
         };
       }
     } catch (error) {
-      console.error('❌ Auth check failed:', error);
-      // Clear token on error
-      this.clearSessionToken();
+      console.error('❌ [AUTH] Login status check failed:', error);
+      console.log('🚨 [AUTH] Full error details:', {
+        message: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined
+      });
       return {
         loggedIn: false,
         error: 'Authentication check failed'
@@ -124,100 +112,29 @@ class AuthService {
   }
 
   /**
-   * Initiate login flow (redirect to Jira OAuth)
+   * Initiate login flow (redirect to Jira OAuth - no popup, clean redirect)
    */
   async initiateLogin(): Promise<void> {
-    try {
-      console.log('🚀 Starting login flow...');
+    console.log('🚀 Starting clean redirect login flow...');
 
-      // Call the OAuth initiation endpoint (existing flow)
-      const response = await fetch(`${this.baseUrl}/v1/jira/auth/initiate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: 'web-user-' + Date.now() // Generate a unique user ID
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success && data.authorization_url) {
-        console.log('🔄 Redirecting to Jira OAuth...');
-
-        // Open OAuth in popup window
-        const popup = window.open(
-          data.authorization_url,
-          'jira-oauth',
-          'width=600,height=700,scrollbars=yes,resizable=yes'
-        );
-
-        // Listen for OAuth completion with session token
-        return new Promise((resolve, reject) => {
-          const messageHandler = (event: MessageEvent) => {
-            console.log('📨 Received message from OAuth popup:', event.data);
-
-            // Handle new format with session token
-            if (event.data?.type === 'jira_auth_success' && event.data?.sessionToken) {
-              console.log('✅ Login successful with session token!');
-
-              // Store the session token
-              this.storeSessionToken(event.data.sessionToken);
-
-              popup?.close();
-              window.removeEventListener('message', messageHandler);
-              resolve();
-            }
-            // Handle legacy format (fallback)
-            else if (event.data === 'jira_auth_success') {
-              console.log('✅ Login successful (legacy format)!');
-              popup?.close();
-              window.removeEventListener('message', messageHandler);
-              resolve();
-            }
-          };
-
-          window.addEventListener('message', messageHandler);
-
-          // Handle popup being closed manually
-          const checkClosed = setInterval(() => {
-            if (popup?.closed) {
-              clearInterval(checkClosed);
-              window.removeEventListener('message', messageHandler);
-              reject(new Error('Login popup was closed'));
-            }
-          }, 1000);
-        });
-      } else {
-        throw new Error('Failed to initiate login');
-      }
-    } catch (error) {
-      console.error('❌ Login failed:', error);
-      throw error;
-    }
+    // Direct redirect to OAuth initiate endpoint
+    // The backend will handle user ID creation from Jira accountId
+    window.location.href = `${this.baseUrl}/v1/jira/auth/initiate`;
   }
 
   /**
-   * Logout user (clear session)
+   * Logout user (clear server session)
    */
   async logout(): Promise<void> {
     try {
       console.log('🚪 Logging out...');
 
-      const sessionToken = this.getSessionToken();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
       const response = await fetch(`${this.baseUrl}/v1/auth/logout`, {
         method: 'POST',
-        credentials: 'include',
-        headers,
+        credentials: 'include', // Include HttpOnly cookies
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       const data = await response.json();
@@ -225,33 +142,16 @@ class AuthService {
     } catch (error) {
       console.error('❌ Logout failed:', error);
       // Even if API call fails, we consider it logged out
-    } finally {
-      // Always clear local session token
-      this.clearSessionToken();
     }
   }
 
   /**
-   * Get user profile information
+   * Get user profile information (from session/me endpoint)
    */
   async getUserProfile(): Promise<UserProfile | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/v1/auth/profile`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        return data.profile;
-      } else {
-        console.error('Failed to get user profile:', data.error);
-        return null;
-      }
+      const authResponse = await this.checkLoginStatus();
+      return authResponse.loggedIn ? authResponse.userInfo || null : null;
     } catch (error) {
       console.error('Error getting user profile:', error);
       return null;

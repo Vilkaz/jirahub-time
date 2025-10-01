@@ -6,10 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import { JiraCallback } from "./pages/JiraCallback";
 import { validateConfig } from './config/env';
 
-// Configure React Query
+// Configure React Query - Event-driven, no auto-refetching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -18,8 +17,10 @@ const queryClient = new QueryClient({
         if (error?.status >= 400 && error?.status < 500) return false;
         return failureCount < 3;
       },
-      staleTime: 30 * 1000, // 30 seconds
-      refetchOnWindowFocus: false,
+      staleTime: Infinity, // Never auto-refetch - only on user action
+      refetchOnWindowFocus: false, // Don't refetch on window focus
+      refetchOnMount: false, // Don't refetch on component mount
+      refetchOnReconnect: false, // Don't refetch on network reconnect
     },
     mutations: {
       retry: 1,
@@ -41,7 +42,6 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/jira/callback" element={<JiraCallback />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -18,6 +18,7 @@ export interface Task {
   url: string;
   description?: string;
   estimatedHours?: number;
+  totalSeconds?: number;
 }
 
 export interface TimeTotal {
@@ -25,11 +26,18 @@ export interface TimeTotal {
   hours: number;
 }
 
+export interface ActiveTask {
+  taskId: string;
+  jiraTitle: string;
+  jiraUrl?: string;
+  currentSessionDuration: number;
+}
+
 export interface TrackingStatus {
   userId: string;
   isTracking: boolean;
-  activeTask?: Task;
-  activeSince?: string;
+  activeTask?: ActiveTask;
+  activeSince?: number;
   todayTotal: TimeTotal;
   weekTotal: TimeTotal;
   monthTotal?: TimeTotal;
@@ -94,8 +102,18 @@ export interface EventRequest extends TimeEvent {}
 
 export interface EventResponse {
   success: boolean;
-  status: TrackingStatus;
+  action: 'start' | 'stop';
+  taskId?: string;
+  startTime?: number;
+  duration?: number;
   message?: string;
+  trackingState?: {
+    isTracking: boolean;
+    activeTask?: ActiveTask;
+    activeSince?: number;
+    startTime?: number;
+    stopTime?: number;
+  };
 }
 
 export interface TimesheetRequest {

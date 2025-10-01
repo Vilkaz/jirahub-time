@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Play, ExternalLink, Search, Filter, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Play, ExternalLink, Search, Filter, Clock, Timer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -17,11 +17,45 @@ interface TaskListProps {
 
 export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
   const { data: tasksData, isLoading, error } = useTasks();
-  const { activeTask, isTracking } = useTimeStore();
+  const { activeTask, isTracking, activeSince } = useTimeStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPriority, setSelectedPriority] = useState<string>('');
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   const tasks = tasksData?.tasks || [];
+
+  // Log tasks data only on initial load
+  useEffect(() => {
+    if (tasksData?.tasks && !searchQuery && !selectedPriority) {
+      console.log('📋 TASKS LOADED:', tasksData.tasks.map(t => ({
+        taskId: t.taskId,
+        key: t.key,
+        totalSeconds: t.totalSeconds
+      })));
+    }
+  }, []); // Empty dependency to log only once
+
+  // Log active task info only when it changes
+  useEffect(() => {
+    if (activeTask) {
+      console.log('🎯 ACTIVE TASK CHANGED:', {
+        taskId: activeTask.taskId,
+        jiraTitle: activeTask.jiraTitle,
+        isTracking,
+        activeSince
+      });
+    }
+  }, [activeTask?.taskId]); // Only log when taskId changes
+
+  // Update current time every second when tracking
+  useEffect(() => {
+    if (isTracking) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isTracking]);
 
   // Filter tasks based on search and priority
   const filteredTasks = tasks.filter(task => {
@@ -51,6 +85,30 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
 
   const handleStartTask = (task: Task) => {
     onTaskSelect?.(task);
+  };
+
+  const formatTrackedTime = (seconds?: number, isActive?: boolean) => {
+    let totalSeconds = seconds || 0;
+
+    // For active task, add current session time
+    if (isActive && isTracking && activeSince) {
+      // activeSince is a Date object from the store
+      const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
+      const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
+      totalSeconds += currentSessionSeconds;
+    }
+
+    // Always show time, even if 0
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    }
+    return `${secs}s`;
   };
 
   if (error) {
@@ -114,7 +172,7 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+      <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
         {isLoading ? (
           // Loading skeletons
           Array.from({ length: 5 }).map((_, i) => (
@@ -146,7 +204,15 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
               <div className="flex items-start justify-between space-x-3">
                 <div className="flex-1 min-w-0 space-y-2">
                   <h4 className="font-medium text-foreground truncate">
-                    {task.title}
+                    <a
+                      href={task.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-primary hover:underline cursor-pointer"
+                      title={`Open ${task.key} in Jira`}
+                    >
+                      {task.title}
+                    </a>
                   </h4>
                   
                   <div className="flex flex-wrap items-center gap-2">
@@ -157,7 +223,7 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                       {task.project}
                     </Badge>
                     {task.priority && (
-                      <Badge 
+                      <Badge
                         variant={getPriorityColor(task.priority)}
                         className="text-xs"
                       >
@@ -166,6 +232,13 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                     )}
                     <Badge variant="outline" className="text-xs">
                       {task.status}
+                    </Badge>
+                    <Badge
+                      variant={isActiveTask(task) ? "default" : "secondary"}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      <Timer className="h-3 w-3" />
+                      {formatTrackedTime(task.totalSeconds, isActiveTask(task))}
                     </Badge>
                   </div>
 

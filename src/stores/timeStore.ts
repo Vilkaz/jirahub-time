@@ -1,18 +1,18 @@
 import { create } from 'zustand';
-import { TrackingStatus, Task } from '../types/api';
+import { TrackingStatus, Task, ActiveTask } from '../types/api';
 
 interface TimeState {
   status: TrackingStatus | null;
   isTracking: boolean;
-  activeTask: Task | null;
+  activeTask: ActiveTask | null;
   activeSince: Date | null;
   todayTotal: number; // seconds
   weekTotal: number; // seconds
-  
+
   // UI State
   isLoading: boolean;
   lastUpdate: Date | null;
-  
+
   // Actions
   setStatus: (status: TrackingStatus) => void;
   startTracking: (task: Task) => void;
@@ -33,21 +33,45 @@ export const useTimeStore = create<TimeState>((set, get) => ({
   isLoading: true,
   lastUpdate: null,
 
-  setStatus: (status) => set({
-    status,
-    isTracking: status.isTracking || false,
-    activeTask: status.activeTask || null,
-    activeSince: status.activeSince ? new Date(status.activeSince) : null,
-    todayTotal: status.todayTotal?.seconds || 0,
-    weekTotal: status.weekTotal?.seconds || 0,
-    lastUpdate: new Date(),
-  }),
+  setStatus: (status) => {
+    // Only log significant changes
+    const currentState = get();
+    const taskChanged = currentState.activeTask?.taskId !== status.activeTask?.taskId;
+    const trackingChanged = currentState.isTracking !== status.isTracking;
 
-  startTracking: (task) => set({ 
-    isTracking: true,
-    activeTask: task,
-    activeSince: new Date(),
-  }),
+    if (taskChanged || trackingChanged) {
+      console.log('🏪 STATUS CHANGED:', {
+        isTracking: status.isTracking,
+        activeTask: status.activeTask?.taskId,
+        activeSince: status.activeSince
+      });
+    }
+
+    return set({
+      status,
+      isTracking: status.isTracking || false,
+      activeTask: status.activeTask || null,
+      activeSince: status.activeSince ? new Date(status.activeSince * 1000) : null,
+      todayTotal: status.todayTotal?.seconds || 0,
+      weekTotal: status.weekTotal?.seconds || 0,
+      lastUpdate: new Date(),
+    });
+  },
+
+  startTracking: (task) => {
+    // This is called from UI actions, create a mock ActiveTask
+    const activeTask: ActiveTask = {
+      taskId: task.taskId,
+      jiraTitle: task.title,
+      jiraUrl: task.url,
+      currentSessionDuration: 0
+    };
+    set({
+      isTracking: true,
+      activeTask,
+      activeSince: new Date(),
+    });
+  },
 
   stopTracking: () => set({ 
     isTracking: false,

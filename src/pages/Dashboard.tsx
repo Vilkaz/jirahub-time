@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { Header } from '../components/layout/Header';
 import { TrackingStatus } from '../components/tracking/TrackingStatus';
 import { TaskList } from '../components/tasks/TaskList';
 import { TimeChart } from '../components/analytics/TimeChart';
@@ -29,17 +28,19 @@ export const Dashboard = () => {
       // If already tracking, show confirmation or switch tasks
       toast({
         title: "Switching tasks",
-        description: `Switching from ${activeTask.key} to ${task.key}`,
+        description: `Switching from ${activeTask.taskId} to ${task.taskId}`,
       });
     }
-    
-    startTracking(task.taskId);
+
+    startTracking({
+      taskId: task.taskId,
+      jiraUrl: task.url,
+      jiraTitle: task.title
+    });
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-      
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-8">
           {/* Hero Section - Status */}
@@ -82,13 +83,10 @@ export const Dashboard = () => {
           {/* Tasks Section */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-foreground">
-              Tasks & Projects
+              Tasks
             </h2>
-            
-            <div className="grid lg:grid-cols-2 gap-6">
-              <TaskList onTaskSelect={handleTaskSelect} />
-              <ProjectBreakdown />
-            </div>
+
+            <TaskList onTaskSelect={handleTaskSelect} />
           </section>
 
           {/* Analytics Section */}
@@ -96,9 +94,10 @@ export const Dashboard = () => {
             <h2 className="text-2xl font-semibold text-foreground">
               Analytics & Insights
             </h2>
-            
-            <div className="grid lg:grid-cols-1 gap-6">
+
+            <div className="grid lg:grid-cols-2 gap-6">
               <TimeChart />
+              <ProjectBreakdown />
             </div>
           </section>
 

@@ -47,24 +47,11 @@ export class JiraService {
    */
   async startOAuthFlow(): Promise<void> {
     try {
-      // Generate PKCE parameters
-      const { codeVerifier, codeChallenge } = await this.generatePKCE();
-      const state = this.generateRandomString(32);
+      console.log('🚀 Starting Jira OAuth flow...');
 
-      // Store OAuth state for validation
-      const oauthState: JiraOAuthState = {
-        state,
-        codeVerifier,
-        redirectUri: `${window.location.origin}/jira/callback`
-      };
-
-      sessionStorage.setItem(JiraService.OAUTH_STATE_KEY, JSON.stringify(oauthState));
-
-      // Call our backend to initiate OAuth
-      const response = await apiService.initiateJiraAuth(oauthState.redirectUri);
-
-      // Redirect to Jira OAuth - API returns 'authorization_url', not 'authUrl'
-      window.location.href = response.authorization_url || response.authUrl;
+      // Simple redirect to our backend OAuth initiate endpoint
+      // The backend handles everything and sets session cookie on success
+      window.location.href = `${config.API_BASE_URL}/v1/jira/auth/initiate`;
 
     } catch (error) {
       console.error('Failed to start Jira OAuth:', error);

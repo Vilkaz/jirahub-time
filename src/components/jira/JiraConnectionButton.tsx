@@ -36,9 +36,14 @@ export const JiraConnectionButton = ({
     try {
       setConnecting(true);
       setConnectionError(null);
+
+      // Add small delay to ensure loading state is visible
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       await jiraService.startOAuthFlow();
     } catch (error) {
       setConnectionError(error instanceof Error ? error.message : 'Connection failed');
+      setConnecting(false); // Reset on error
     }
   };
 

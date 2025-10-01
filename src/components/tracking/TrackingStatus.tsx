@@ -29,10 +29,14 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
     if (isTracking) {
       stopTracking();
     } else {
-      // For demo purposes, we'll use the first available task
+      // For demo purposes, we'll use the last active task if available
       // In production, this would open a task selector
       if (activeTask) {
-        startTracking(activeTask.taskId);
+        startTracking({
+          taskId: activeTask.taskId,
+          jiraUrl: activeTask.jiraUrl,
+          jiraTitle: activeTask.jiraTitle
+        });
       }
     }
   };
@@ -54,7 +58,7 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center space-x-2">
             <Clock className="h-5 w-5" />
-            <span>Current Status</span>
+            <span>Current Session</span>
           </CardTitle>
           <Badge variant={getStatusBadgeVariant()} className="text-xs">
             {getStatusText()}
@@ -63,47 +67,49 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Live Timer Display */}
-        <div className="text-center space-y-2">
-          <LiveTimer size="xl" className="justify-center" />
-          <p className="text-sm text-muted-foreground">
-            {isTracking ? 'Time elapsed today' : 'Total time today'}
-          </p>
-        </div>
+        {/* Session Timer */}
+        {isTracking && (
+          <div className="text-center space-y-2">
+            <LiveTimer size="xl" className="justify-center" />
+          </div>
+        )}
 
         {/* Active Task Info */}
         {activeTask && (
           <div className="space-y-3">
             <div className="flex items-start justify-between space-x-3">
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground truncate">
-                  {activeTask.title}
-                </h3>
+                {activeTask.jiraUrl ? (
+                  <a
+                    href={activeTask.jiraUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-foreground truncate hover:text-primary hover:underline cursor-pointer block"
+                    title={`Open ${activeTask.taskId} in Jira`}
+                  >
+                    {activeTask.jiraTitle}
+                  </a>
+                ) : (
+                  <h3 className="font-semibold text-foreground truncate">
+                    {activeTask.jiraTitle}
+                  </h3>
+                )}
                 <div className="flex items-center space-x-2 mt-1">
                   <Badge variant="outline" className="text-xs">
-                    {activeTask.key}
+                    {activeTask.taskId}
                   </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {activeTask.project}
-                  </Badge>
-                  {activeTask.priority && (
-                    <Badge 
-                      variant={activeTask.priority === 'High' ? 'destructive' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {activeTask.priority}
-                    </Badge>
-                  )}
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => window.open(activeTask.url, '_blank')}
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
+              {activeTask.jiraUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => window.open(activeTask.jiraUrl, '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -143,24 +149,6 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
             )}
           </Button>
         </div>
-
-        {/* Quick Stats */}
-        {status && status.weekTotal && status.todayTotal && (
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-card-border">
-            <div className="text-center space-y-1">
-              <p className="text-xs text-muted-foreground">This Week</p>
-              <p className="font-semibold text-foreground">
-                {Math.round(status.weekTotal.hours * 10) / 10}h
-              </p>
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-xs text-muted-foreground">Today</p>
-              <p className="font-semibold text-foreground">
-                {Math.round(status.todayTotal.hours * 10) / 10}h
-              </p>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

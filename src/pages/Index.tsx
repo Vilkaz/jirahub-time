@@ -3,7 +3,7 @@
  * Handles authentication state and shows appropriate UI
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Dashboard } from './Dashboard';
 import { LoginScreen } from '@/components/auth/LoginScreen';
 import { LoadingScreen } from '@/components/auth/LoadingScreen';
@@ -11,7 +11,30 @@ import { UserProfile } from '@/components/auth/UserProfile';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
-  const { status, user, login, logout } = useAuth();
+  const { status, user, login, logout, checkAuth } = useAuth();
+
+  // Handle session token from OAuth redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionToken = urlParams.get('session_token');
+
+    if (sessionToken) {
+      console.log('🍪 Setting session token from OAuth redirect:', sessionToken);
+
+      // Set session token as HttpOnly-like cookie (using secure approach)
+      // Since we can't set HttpOnly from JS, we'll store it securely and send it with requests
+      document.cookie = `session_token=${sessionToken}; Path=/; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`;
+
+      // Clean up URL
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+
+      // Force auth check with new cookie
+      setTimeout(() => {
+        checkAuth();
+      }, 100);
+    }
+  }, [checkAuth]);
 
   console.log('📍 Index: Auth status =', status, 'User =', user?.user_id);
 

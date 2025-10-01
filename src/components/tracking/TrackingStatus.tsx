@@ -1,29 +1,70 @@
-import { Play, Square, ExternalLink, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Play, Square, ExternalLink, Clock, Calendar, CalendarDays } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { LiveTimer } from '../ui/live-timer';
-import { useTimeTracking } from '../../hooks/useTimeTracking';
+import { useTimeTracking, useTasks } from '../../hooks/useTimeTracking';
 import { useTimeStore } from '../../stores/timeStore';
 import { cn } from '../../lib/utils';
+import { calculateTodayTotal, calculateWeekTotal, formatHours } from '../../utils/timeCalculations';
 
 interface TrackingStatusProps {
   className?: string;
 }
 
 export const TrackingStatus = ({ className }: TrackingStatusProps) => {
-  const { 
-    status, 
-    isLoading, 
-    startTracking, 
-    stopTracking, 
-    isStarting, 
-    isStopping 
+  const {
+    status,
+    isLoading,
+    startTracking,
+    stopTracking,
+    isStarting,
+    isStopping
   } = useTimeTracking();
-  
-  const { isTracking, activeTask } = useTimeStore();
+
+  const { isTracking, activeTask, activeSince } = useTimeStore();
+  const { data: tasksData } = useTasks();
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   const isActionLoading = isStarting || isStopping;
+
+  // Update current time every second when tracking (for real-time stats)
+  useEffect(() => {
+    if (isTracking) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isTracking]);
+
+  // Calculate today and week totals for the active task
+  const calculateActiveTaskTotals = () => {
+    if (!activeTask || !tasksData?.tasks) {
+      return { todayTotal: 0, weekTotal: 0 };
+    }
+
+    const task = tasksData.tasks.find(t => t.taskId === activeTask.taskId);
+    if (!task || !task.tracked_time) {
+      return { todayTotal: 0, weekTotal: 0 };
+    }
+
+    let todayTotal = calculateTodayTotal(task.tracked_time);
+    let weekTotal = calculateWeekTotal(task.tracked_time);
+
+    // Add current session time if tracking
+    if (isTracking && activeSince) {
+      const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
+      const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
+      todayTotal += currentSessionSeconds;
+      weekTotal += currentSessionSeconds;
+    }
+
+    return { todayTotal, weekTotal };
+  };
+
+  const { todayTotal, weekTotal } = calculateActiveTaskTotals();
 
   const handleToggleTracking = () => {
     if (isTracking) {
@@ -111,6 +152,22 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
                 </Button>
               )}
             </div>
+
+            {/* Today and Week stats for active task */}
+            {isTracking && (todayTotal > 0 || weekTotal > 0) && (
+              <div className="flex items-center gap-4 text-sm text-muted-foreground border-t pt-3">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  <span className="font-medium">Today:</span>
+                  <span className="text-foreground font-semibold">{formatHours(todayTotal)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4" />
+                  <span className="font-medium">This Week:</span>
+                  <span className="text-foreground font-semibold">{formatHours(weekTotal)}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -243,13 +243,13 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                     </Badge>
                   </div>
 
-                  {/* Today and This Week stats */}
-                  {task.tracked_time && Object.keys(task.tracked_time).length > 0 && (
+                  {/* Today and This Week stats - show if has tracked_time OR is actively tracking */}
+                  {((task.tracked_time && Object.keys(task.tracked_time).length > 0) || isActiveTask(task)) && (
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         <span>Today: {formatHours(
-                          calculateTodayTotal(task.tracked_time) +
+                          calculateTodayTotal(task.tracked_time || {}) +
                           (isActiveTask(task) && isTracking && activeSince
                             ? Math.floor((currentTime - (activeSince instanceof Date ? activeSince.getTime() : activeSince)) / 1000)
                             : 0)
@@ -258,7 +258,7 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                       <div className="flex items-center gap-1">
                         <CalendarDays className="h-3 w-3" />
                         <span>This Week: {formatHours(
-                          calculateWeekTotal(task.tracked_time) +
+                          calculateWeekTotal(task.tracked_time || {}) +
                           (isActiveTask(task) && isTracking && activeSince
                             ? Math.floor((currentTime - (activeSince instanceof Date ? activeSince.getTime() : activeSince)) / 1000)
                             : 0)

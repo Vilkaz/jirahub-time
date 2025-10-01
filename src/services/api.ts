@@ -98,10 +98,13 @@ class ApiService {
     });
   }
 
-  async stopTracking(): Promise<EventResponse> {
+  async stopTracking(dailySeconds: Record<string, number>): Promise<EventResponse> {
+    console.log('🛑 API: Sending stop with dailySeconds:', dailySeconds);
+
     const eventData: EventRequest = {
       action: 'stop',
       timestamp: new Date().toISOString(),
+      dailySeconds,
     };
 
     return this.request<EventResponse>('/v1/events', {

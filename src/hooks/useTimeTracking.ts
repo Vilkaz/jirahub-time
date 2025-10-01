@@ -4,6 +4,7 @@ import { apiService } from '../services/api';
 import { useTimeStore } from '../stores/timeStore';
 import { config } from '../config/env';
 import { toast } from '../hooks/use-toast';
+import { calculateDailySeconds } from '../utils/timeCalculations';
 
 export const useTimeTracking = () => {
   const queryClient = useQueryClient();
@@ -77,7 +78,28 @@ export const useTimeTracking = () => {
 
   // Stop tracking mutation
   const stopMutation = useMutation({
-    mutationFn: () => apiService.stopTracking(),
+    mutationFn: () => {
+      // Get activeSince from store to calculate daily seconds
+      const state = useTimeStore.getState();
+      const activeSince = state.activeSince;
+
+      console.log('🛑 PREPARING TO STOP:');
+      console.log('   activeSince:', activeSince);
+
+      if (!activeSince) {
+        console.warn('⚠️ No activeSince found in store - will send empty dailySeconds');
+        return apiService.stopTracking({});
+      }
+
+      // Calculate dailySeconds based on session time and midnight crossing
+      const startTime = activeSince; // Already a Date object
+      const endTime = new Date();
+      const dailySeconds = calculateDailySeconds(startTime, endTime);
+
+      console.log('🛑 Calculated dailySeconds:', dailySeconds);
+
+      return apiService.stopTracking(dailySeconds);
+    },
     onSuccess: (data) => {
       console.log('📍 Stop tracking response:', data);
 

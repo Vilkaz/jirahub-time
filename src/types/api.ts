@@ -56,6 +56,7 @@ export interface TimeEvent {
   action: 'start' | 'stop';
   taskId?: string;
   timestamp?: string;
+  dailySeconds?: Record<string, number>; // Map of date (DD.MM.YYYY) to seconds
 }
 
 export interface TasksResponse {

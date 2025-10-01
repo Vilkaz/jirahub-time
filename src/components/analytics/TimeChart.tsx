@@ -6,7 +6,7 @@ import { TrendingUp, Calendar } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useTasks } from '../../hooks/useTimeTracking';
 import { useTimeStore } from '../../stores/timeStore';
-import { formatDate } from '../../utils/timeCalculations';
+import { formatDate, getCurrentWeekDates } from '../../utils/timeCalculations';
 
 interface TimeChartProps {
   className?: string;
@@ -27,16 +27,14 @@ export const TimeChart = ({ className }: TimeChartProps) => {
     }
   }, [isTracking]);
 
-  // Calculate last 7 days data from tracked_time
+  // Calculate current week data (Monday-Sunday) from tracked_time
   const calculateWeekData = () => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date();
     const weekData: Array<{ day: string; hours: number; date: string }> = [];
 
-    // Generate last 7 days
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
+    // Get current week dates (Monday-Sunday)
+    const weekDates = getCurrentWeekDates();
+    weekDates.forEach(date => {
       const dateStr = formatDate(date);
       const dayName = days[date.getDay()];
 
@@ -45,7 +43,7 @@ export const TimeChart = ({ className }: TimeChartProps) => {
         hours: 0,
         date: dateStr,
       });
-    }
+    });
 
     // Sum up seconds from all tasks for each day
     const tasks = tasksData?.tasks || [];
@@ -60,12 +58,15 @@ export const TimeChart = ({ className }: TimeChartProps) => {
       });
     });
 
-    // Add current active session time to today
+    // Add current active session time to today (if today is in current week)
     if (isTracking && activeSince && activeTask) {
-      const todayEntry = weekData[weekData.length - 1]; // Last entry is today
-      const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
-      const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
-      todayEntry.hours += currentSessionSeconds / 3600;
+      const todayStr = formatDate(new Date());
+      const todayEntry = weekData.find(d => d.date === todayStr);
+      if (todayEntry) {
+        const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
+        const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
+        todayEntry.hours += currentSessionSeconds / 3600;
+      }
     }
 
     return weekData;
@@ -124,7 +125,7 @@ export const TimeChart = ({ className }: TimeChartProps) => {
           </CardTitle>
           <Badge variant="outline" className="text-xs flex items-center space-x-1">
             <Calendar className="h-3 w-3" />
-            <span>Last 7 days</span>
+            <span>Current Week</span>
           </Badge>
         </div>
       </CardHeader>

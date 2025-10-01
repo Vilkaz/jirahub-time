@@ -127,15 +127,32 @@ export function getCurrentDateString(): string {
 }
 
 /**
- * Get start of week (Monday) in DD.MM.YYYY format
+ * Get start of week (Monday) as Date object
  */
 export function getWeekStartDate(): Date {
   const today = new Date();
   const day = today.getDay();
   const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  const monday = new Date(today.setDate(diff));
+  const monday = new Date(today);
+  monday.setDate(diff);
   monday.setHours(0, 0, 0, 0);
   return monday;
+}
+
+/**
+ * Get all 7 days of current week (Monday-Sunday) as Date objects
+ */
+export function getCurrentWeekDates(): Date[] {
+  const monday = getWeekStartDate();
+  const weekDates: Date[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    weekDates.push(date);
+  }
+
+  return weekDates;
 }
 
 /**

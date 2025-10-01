@@ -1,48 +1,93 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Folder, Clock } from 'lucide-react';
+import { ListChecks, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useTasks } from '../../hooks/useTimeTracking';
+import { useTimeStore } from '../../stores/timeStore';
+import { calculateWeekTotal, formatDate } from '../../utils/timeCalculations';
 
 interface ProjectBreakdownProps {
   className?: string;
-  data?: Array<{
-    project: string;
-    hours: number;
-    taskCount: number;
-    color: string;
-  }>;
-  isLoading?: boolean;
 }
 
-// Mock data for demonstration
-const mockProjectData = [
-  { project: 'Frontend', hours: 12.5, taskCount: 8, color: 'hsl(var(--primary))' },
-  { project: 'Backend', hours: 8.2, taskCount: 5, color: 'hsl(var(--success))' },
-  { project: 'DevOps', hours: 4.1, taskCount: 3, color: 'hsl(var(--warning))' },
-  { project: 'Design', hours: 6.3, taskCount: 4, color: 'hsl(var(--destructive))' },
+const COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--success))',
+  'hsl(var(--warning))',
+  'hsl(var(--destructive))',
+  'hsl(217, 91%, 60%)',
+  'hsl(142, 71%, 45%)',
+  'hsl(38, 92%, 50%)',
+  'hsl(355, 78%, 56%)',
 ];
 
-export const ProjectBreakdown = ({ 
-  className, 
-  data = mockProjectData, 
-  isLoading 
-}: ProjectBreakdownProps) => {
-  const totalHours = data.reduce((sum, project) => sum + project.hours, 0);
-  const totalTasks = data.reduce((sum, project) => sum + project.taskCount, 0);
+export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
+  const { data: tasksData, isLoading } = useTasks();
+  const { isTracking, activeSince, activeTask } = useTimeStore();
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Update current time every second when tracking (for real-time updates)
+  useEffect(() => {
+    if (isTracking) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isTracking]);
+
+  // Calculate task breakdown for current week
+  const calculateTaskBreakdown = () => {
+    const tasks = tasksData?.tasks || [];
+    const taskData: Array<{
+      taskKey: string;
+      taskTitle: string;
+      hours: number;
+      color: string;
+    }> = [];
+
+    tasks.forEach((task, index) => {
+      const trackedTime = task.tracked_time || {};
+      let weekHours = calculateWeekTotal(trackedTime) / 3600; // Convert seconds to hours
+
+      // Add current session time if this is the active task
+      if (isTracking && activeTask?.taskId === task.taskId && activeSince) {
+        const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
+        const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
+        weekHours += currentSessionSeconds / 3600;
+      }
+
+      // Only include tasks with time tracked this week
+      if (weekHours > 0) {
+        taskData.push({
+          taskKey: task.key,
+          taskTitle: task.title,
+          hours: weekHours,
+          color: COLORS[index % COLORS.length],
+        });
+      }
+    });
+
+    // Sort by hours descending
+    return taskData.sort((a, b) => b.hours - a.hours);
+  };
+
+  const data = calculateTaskBreakdown();
+  const totalHours = data.reduce((sum, task) => sum + task.hours, 0);
+  const totalTasks = data.length;
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0];
-      const percentage = ((data.value / totalHours) * 100).toFixed(1);
+      const percentage = totalHours > 0 ? ((data.value / totalHours) * 100).toFixed(1) : '0.0';
       return (
         <div className="rounded-lg border border-card-border bg-card p-3 shadow-lg">
-          <p className="font-semibold text-foreground">{data.payload.project}</p>
-          <p className="text-sm text-primary">
+          <p className="font-semibold text-foreground text-xs">{data.payload.taskKey}</p>
+          <p className="text-xs text-muted-foreground truncate max-w-[200px]">{data.payload.taskTitle}</p>
+          <p className="text-sm text-primary mt-1">
             Hours: <span className="font-medium">{data.value.toFixed(1)}</span> ({percentage}%)
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Tasks: {data.payload.taskCount}
           </p>
         </div>
       );
@@ -55,8 +100,8 @@ export const ProjectBreakdown = ({
       <Card className={cn('card-elevated', className)}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Folder className="h-5 w-5" />
-            <span>Project Breakdown</span>
+            <ListChecks className="h-5 w-5" />
+            <span>Task Breakdown</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -78,12 +123,12 @@ export const ProjectBreakdown = ({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center space-x-2">
-            <Folder className="h-5 w-5" />
-            <span>Project Breakdown</span>
+            <ListChecks className="h-5 w-5" />
+            <span>Task Breakdown</span>
           </CardTitle>
           <Badge variant="outline" className="text-xs flex items-center space-x-1">
             <Clock className="h-3 w-3" />
-            <span>This week</span>
+            <span>Current Week</span>
           </Badge>
         </div>
       </CardHeader>
@@ -115,31 +160,34 @@ export const ProjectBreakdown = ({
           </ResponsiveContainer>
         </div>
 
-        {/* Project List */}
+        {/* Task List */}
         <div className="space-y-3">
-          {[...data]
-            .sort((a, b) => b.hours - a.hours)
-            .map((project, index) => {
-              const percentage = ((project.hours / totalHours) * 100).toFixed(1);
+          {data.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              No tasks tracked this week
+            </div>
+          ) : (
+            data.map((task, index) => {
+              const percentage = totalHours > 0 ? ((task.hours / totalHours) * 100).toFixed(1) : '0.0';
               return (
-                <div key={project.project} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: project.color }}
+                <div key={task.taskKey} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: task.color }}
                     />
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {project.project}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground text-sm truncate">
+                        {task.taskKey}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {project.taskCount} tasks
+                      <p className="text-xs text-muted-foreground truncate">
+                        {task.taskTitle}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right ml-2 flex-shrink-0">
                     <p className="font-semibold text-foreground">
-                      {project.hours.toFixed(1)}h
+                      {task.hours.toFixed(1)}h
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {percentage}%
@@ -147,7 +195,8 @@ export const ProjectBreakdown = ({
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
         </div>
 
         {/* Summary */}

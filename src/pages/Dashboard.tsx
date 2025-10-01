@@ -3,6 +3,7 @@ import { TrackingStatus } from '../components/tracking/TrackingStatus';
 import { TaskList } from '../components/tasks/TaskList';
 import { TimeChart } from '../components/analytics/TimeChart';
 import { ProjectBreakdown } from '../components/analytics/ProjectBreakdown';
+import { ReportsSection } from '../components/analytics/ReportsSection';
 import { useTimeTracking, useTasks } from '../hooks/useTimeTracking';
 import { useTimeStore } from '../stores/timeStore';
 import { Task } from '../types/api';
@@ -132,44 +133,8 @@ export const Dashboard = () => {
             </div>
           </section>
 
-          {/* Quick Actions Section */}
-          <section className="space-y-4">
-            <h2 className="text-2xl font-semibold text-foreground">
-              Quick Actions
-            </h2>
-            
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="card-status p-6 text-center space-y-3 hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto">
-                  <span className="text-primary text-xl">📊</span>
-                </div>
-                <h3 className="font-semibold text-foreground">Generate Report</h3>
-                <p className="text-sm text-muted-foreground">
-                  Create timesheet for export
-                </p>
-              </div>
-              
-              <div className="card-status p-6 text-center space-y-3 hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center mx-auto">
-                  <span className="text-success text-xl">🔗</span>
-                </div>
-                <h3 className="font-semibold text-foreground">Jira Settings</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage Jira integration
-                </p>
-              </div>
-              
-              <div className="card-status p-6 text-center space-y-3 hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center mx-auto">
-                  <span className="text-warning text-xl">⚙️</span>
-                </div>
-                <h3 className="font-semibold text-foreground">Preferences</h3>
-                <p className="text-sm text-muted-foreground">
-                  Configure app settings
-                </p>
-              </div>
-            </div>
-          </section>
+          {/* Reports Section */}
+          <ReportsSection />
         </div>
       </main>
     </div>

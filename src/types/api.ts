@@ -7,12 +7,19 @@ export interface User {
   avatar?: string;
 }
 
+export interface SapProject {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface Task {
   taskId: string;
   key: string;
   title: string;
   status: string;
   project: string;
+  sapProject?: SapProject;
   assignee?: string;
   priority?: 'Low' | 'Medium' | 'High' | 'Critical';
   url: string;

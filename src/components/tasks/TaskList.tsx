@@ -223,6 +223,19 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                     <Badge variant="outline" className="text-xs">
                       {task.project}
                     </Badge>
+                    {task.sapProject && (
+                      <a
+                        href={task.sapProject.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block"
+                        title={`Open ${task.sapProject.name} in SAP`}
+                      >
+                        <Badge variant="outline" className="text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 cursor-pointer transition-colors">
+                          SAP: {task.sapProject.name}
+                        </Badge>
+                      </a>
+                    )}
                     {task.priority && (
                       <Badge
                         variant={getPriorityColor(task.priority)}

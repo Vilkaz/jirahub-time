@@ -1,16 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { TrackingStatus } from '../components/tracking/TrackingStatus';
 import { TaskList } from '../components/tasks/TaskList';
 import { TimeChart } from '../components/analytics/TimeChart';
 import { ProjectBreakdown } from '../components/analytics/ProjectBreakdown';
-import { useTimeTracking } from '../hooks/useTimeTracking';
+import { useTimeTracking, useTasks } from '../hooks/useTimeTracking';
 import { useTimeStore } from '../stores/timeStore';
 import { Task } from '../types/api';
 import { toast } from '../hooks/use-toast';
+import { calculateTodayTotal, calculateWeekTotal, formatHours } from '../utils/timeCalculations';
 
 export const Dashboard = () => {
   const { startTracking } = useTimeTracking();
-  const { activeTask, isTracking } = useTimeStore();
+  const { activeTask, isTracking, activeSince } = useTimeStore();
+  const { data: tasksData } = useTasks();
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Initialize the app
   useEffect(() => {
@@ -22,6 +25,41 @@ export const Dashboard = () => {
       });
     }
   }, []);
+
+  // Update current time every second when tracking (for real-time stats)
+  useEffect(() => {
+    if (isTracking) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isTracking]);
+
+  // Calculate today and week totals from all tasks
+  const calculateTotals = () => {
+    const tasks = tasksData?.tasks || [];
+    let todayTotal = 0;
+    let weekTotal = 0;
+
+    tasks.forEach(task => {
+      const trackedTime = task.tracked_time || {};
+      todayTotal += calculateTodayTotal(trackedTime);
+      weekTotal += calculateWeekTotal(trackedTime);
+
+      // Add current session time if this is the active task
+      if (isTracking && activeTask?.taskId === task.taskId && activeSince) {
+        const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
+        const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
+        todayTotal += currentSessionSeconds;
+        weekTotal += currentSessionSeconds;
+      }
+    });
+
+    return { todayTotal, weekTotal };
+  };
+
+  const { todayTotal, weekTotal } = calculateTotals();
 
   const handleTaskSelect = (task: Task) => {
     if (isTracking && activeTask) {
@@ -61,19 +99,12 @@ export const Dashboard = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="card-status p-4 text-center">
-                    <p className="text-2xl font-bold text-primary">4.2h</p>
+                    <p className="text-2xl font-bold text-primary">{formatHours(todayTotal)}</p>
                     <p className="text-xs text-muted-foreground">Today</p>
                   </div>
                   <div className="card-status p-4 text-center">
-                    <p className="text-2xl font-bold text-success">31.5h</p>
+                    <p className="text-2xl font-bold text-success">{formatHours(weekTotal)}</p>
                     <p className="text-xs text-muted-foreground">This Week</p>
-                  </div>
-                </div>
-                <div className="card-status p-4 text-center">
-                  <p className="text-xl font-semibold text-foreground">85%</p>
-                  <p className="text-xs text-muted-foreground">Weekly Goal Progress</p>
-                  <div className="w-full bg-secondary rounded-full h-2 mt-2">
-                    <div className="bg-gradient-primary h-2 rounded-full w-4/5" />
                   </div>
                 </div>
               </div>

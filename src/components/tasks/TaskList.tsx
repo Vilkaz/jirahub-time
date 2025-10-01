@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, ExternalLink, Search, Filter, Clock, Timer } from 'lucide-react';
+import { Play, ExternalLink, Search, Filter, Clock, Timer, Calendar, CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -9,6 +9,7 @@ import { useTasks } from '../../hooks/useTimeTracking';
 import { useTimeStore } from '../../stores/timeStore';
 import { Task } from '../../types/api';
 import { cn } from '../../lib/utils';
+import { calculateTodayTotal, calculateWeekTotal, formatHours } from '../../utils/timeCalculations';
 
 interface TaskListProps {
   className?: string;
@@ -241,6 +242,30 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                       {formatTrackedTime(task.totalSeconds, isActiveTask(task))}
                     </Badge>
                   </div>
+
+                  {/* Today and This Week stats */}
+                  {task.tracked_time && Object.keys(task.tracked_time).length > 0 && (
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>Today: {formatHours(
+                          calculateTodayTotal(task.tracked_time) +
+                          (isActiveTask(task) && isTracking && activeSince
+                            ? Math.floor((currentTime - (activeSince instanceof Date ? activeSince.getTime() : activeSince)) / 1000)
+                            : 0)
+                        )}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        <span>This Week: {formatHours(
+                          calculateWeekTotal(task.tracked_time) +
+                          (isActiveTask(task) && isTracking && activeSince
+                            ? Math.floor((currentTime - (activeSince instanceof Date ? activeSince.getTime() : activeSince)) / 1000)
+                            : 0)
+                        )}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {task.assignee && (
                     <p className="text-xs text-muted-foreground">

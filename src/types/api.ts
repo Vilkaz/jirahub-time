@@ -19,6 +19,7 @@ export interface Task {
   description?: string;
   estimatedHours?: number;
   totalSeconds?: number;
+  tracked_time?: Record<string, number>; // Map of DD.MM.YYYY -> seconds
 }
 
 export interface TimeTotal {

@@ -130,14 +130,25 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
     sapProjectId?: string;
     sapProjectName?: string;
   }) => {
-    // Call API to create manual task
-    await apiService.createManualTask(taskData);
+    console.log('📝 Creating manual task:', taskData);
 
-    // Refetch tasks to include the new manual task
-    refetch();
+    try {
+      // Call API to create manual task
+      const result = await apiService.createManualTask(taskData);
+      console.log('✅ Manual task created successfully:', result);
 
-    // Switch to manual tab to see the new task
-    setActiveTab('manual');
+      // Refetch tasks to include the new manual task
+      console.log('🔄 Refetching tasks...');
+      await refetch();
+      console.log('✅ Tasks refetched');
+
+      // Switch to manual tab to see the new task
+      console.log('📂 Switching to manual tab');
+      setActiveTab('manual');
+    } catch (err) {
+      console.error('❌ Failed to create manual task:', err);
+      throw err; // Re-throw to let dialog handle it
+    }
   };
 
   const formatTrackedTime = (seconds?: number, isActive?: boolean) => {

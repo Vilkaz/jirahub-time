@@ -146,6 +146,20 @@ class ApiService {
       body: JSON.stringify({ tracked_time: trackedTime }),
     });
   }
+
+  // Create Manual Task
+  async createManualTask(taskData: {
+    taskId: string;
+    title: string;
+    url?: string;
+    sapProjectId?: string;
+    sapProjectName?: string;
+  }): Promise<{ success: boolean; taskId: string }> {
+    return this.request('/v1/tasks', {
+      method: 'POST',
+      body: JSON.stringify(taskData),
+    });
+  }
 }
 
 export const apiService = new ApiService();

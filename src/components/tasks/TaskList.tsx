@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Play, ExternalLink, Search, Filter, Clock, Timer, Calendar, CalendarDays, Edit } from 'lucide-react';
+import { Play, ExternalLink, Search, Filter, Clock, Timer, Calendar, CalendarDays, Edit, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { useTasks } from '../../hooks/useTimeTracking';
 import { useTimeStore } from '../../stores/timeStore';
 import { Task } from '../../types/api';
 import { cn } from '../../lib/utils';
 import { calculateTodayTotal, calculateWeekTotal, formatHours } from '../../utils/timeCalculations';
 import { EditTaskDialog } from './EditTaskDialog';
+import { CreateManualTaskDialog } from './CreateManualTaskDialog';
 import { apiService } from '../../services/api';
 
 interface TaskListProps {
@@ -25,8 +27,14 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
   const [selectedPriority, setSelectedPriority] = useState<string>('');
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [activeTab, setActiveTab] = useState<'jira' | 'manual'>('jira');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const tasks = tasksData?.tasks || [];
+
+  // Separate tasks by type
+  const jiraTasks = tasks.filter(t => !t.taskId.startsWith('manual:'));
+  const manualTasks = tasks.filter(t => t.taskId.startsWith('manual:'));
 
   // Log tasks data only on initial load
   useEffect(() => {
@@ -61,15 +69,17 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
     }
   }, [isTracking]);
 
-  // Filter tasks based on search and priority
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = 
+  // Filter tasks based on search, priority, and tab
+  const currentTasks = activeTab === 'jira' ? jiraTasks : manualTasks;
+
+  const filteredTasks = currentTasks.filter(task => {
+    const matchesSearch =
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.project.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesPriority = !selectedPriority || task.priority === selectedPriority;
-    
+
     return matchesSearch && matchesPriority;
   });
 
@@ -111,6 +121,23 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
 
     // Refetch tasks to get updated data
     refetch();
+  };
+
+  const handleCreateManualTask = async (taskData: {
+    taskId: string;
+    title: string;
+    url?: string;
+    sapProjectId?: string;
+    sapProjectName?: string;
+  }) => {
+    // Call API to create manual task
+    await apiService.createManualTask(taskData);
+
+    // Refetch tasks to include the new manual task
+    refetch();
+
+    // Switch to manual tab to see the new task
+    setActiveTab('manual');
   };
 
   const formatTrackedTime = (seconds?: number, isActive?: boolean) => {
@@ -155,50 +182,75 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
   return (
     <Card className={cn('card-elevated', className)}>
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Clock className="h-5 w-5" />
-          <span>Available Tasks</span>
-          {!isLoading && (
-            <Badge variant="secondary" className="text-xs">
-              {filteredTasks.length}
-            </Badge>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Clock className="h-5 w-5" />
+            <span>Available Tasks</span>
+            {!isLoading && (
+              <Badge variant="secondary" className="text-xs">
+                {filteredTasks.length}
+              </Badge>
+            )}
+          </div>
+          {activeTab === 'manual' && (
+            <Button
+              size="sm"
+              onClick={() => setCreateDialogOpen(true)}
+              className="text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Manual Task
+            </Button>
           )}
         </CardTitle>
-        
-        {/* Search and Filters */}
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tasks, projects, or keys..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <div className="flex space-x-1">
-              {['Critical', 'High', 'Medium', 'Low'].map(priority => (
-                <Button
-                  key={priority}
-                  variant={selectedPriority === priority ? 'default' : 'outline'}
-                  size="sm"
-                  className="text-xs h-7"
-                  onClick={() => setSelectedPriority(
-                    selectedPriority === priority ? '' : priority
-                  )}
-                >
-                  {priority}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
       </CardHeader>
 
-      <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
+      <CardContent className="space-y-4">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'jira' | 'manual')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="jira">
+              Jira Tasks ({jiraTasks.length})
+            </TabsTrigger>
+            <TabsTrigger value="manual">
+              Manual Tasks ({manualTasks.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={activeTab} className="space-y-3 mt-4">
+            {/* Search and Filters */}
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tasks, projects, or keys..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <div className="flex space-x-1">
+                  {['Critical', 'High', 'Medium', 'Low'].map(priority => (
+                    <Button
+                      key={priority}
+                      variant={selectedPriority === priority ? 'default' : 'outline'}
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setSelectedPriority(
+                        selectedPriority === priority ? '' : priority
+                      )}
+                    >
+                      {priority}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Tasks List */}
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
         {isLoading ? (
           // Loading skeletons
           Array.from({ length: 5 }).map((_, i) => (
@@ -354,6 +406,9 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
             </div>
           ))
         )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
 
       {editingTask && (
@@ -364,6 +419,12 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
           onSave={handleSaveTask}
         />
       )}
+
+      <CreateManualTaskDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSave={handleCreateManualTask}
+      />
     </Card>
   );
 };

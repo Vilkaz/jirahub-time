@@ -11,7 +11,7 @@ import { Task } from '../../types/api';
 import { cn } from '../../lib/utils';
 import { calculateTodayTotal, calculateWeekTotal, formatHours } from '../../utils/timeCalculations';
 import { EditTaskDialog } from './EditTaskDialog';
-import { apiClient } from '../../lib/api';
+import { apiService } from '../../services/api';
 
 interface TaskListProps {
   className?: string;
@@ -107,7 +107,7 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
     });
 
     // Call API to update task
-    await apiClient.put(`/v1/tasks/${taskId}`, { tracked_time });
+    await apiService.updateTask(taskId, tracked_time);
 
     // Refetch tasks to get updated data
     refetch();

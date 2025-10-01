@@ -138,6 +138,14 @@ class ApiService {
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     return this.request('/health');
   }
+
+  // Update Task
+  async updateTask(taskId: string, trackedTime: Record<string, number>): Promise<{ success: boolean; taskId: string; total_seconds: number }> {
+    return this.request(`/v1/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ tracked_time: trackedTime }),
+    });
+  }
 }
 
 export const apiService = new ApiService();

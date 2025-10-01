@@ -41,8 +41,41 @@ export const useTimeTracking = () => {
 
   // Start tracking mutation
   const startMutation = useMutation({
-    mutationFn: ({ taskId, jiraUrl, jiraTitle }: { taskId: string; jiraUrl?: string; jiraTitle?: string }) =>
-      apiService.startTracking(taskId, jiraUrl, jiraTitle),
+    mutationFn: async ({ taskId, jiraUrl, jiraTitle }: { taskId: string; jiraUrl?: string; jiraTitle?: string }) => {
+      // Check if currently tracking a different task
+      const state = useTimeStore.getState();
+      const isCurrentlyTracking = state.isTracking;
+      const currentTaskId = state.activeTask?.taskId;
+
+      console.log('🚀 START TRACKING:', { taskId, isCurrentlyTracking, currentTaskId });
+
+      // If tracking a different task, stop it first
+      if (isCurrentlyTracking && currentTaskId && currentTaskId !== taskId) {
+        console.log('🛑 Stopping previous task before starting new one:', currentTaskId);
+
+        const activeSince = state.activeSince;
+        if (activeSince) {
+          // Calculate dailySeconds for the task we're stopping
+          const startTime = activeSince;
+          const endTime = new Date();
+          const dailySeconds = calculateDailySeconds(startTime, endTime);
+
+          console.log('🛑 Stopping with dailySeconds:', dailySeconds);
+
+          // Stop the previous task (await to ensure it completes)
+          try {
+            await apiService.stopTracking(dailySeconds);
+            console.log('✅ Successfully stopped previous task');
+          } catch (error) {
+            console.error('❌ Failed to stop previous task:', error);
+            // Continue anyway to start the new task
+          }
+        }
+      }
+
+      // Now start the new task
+      return apiService.startTracking(taskId, jiraUrl, jiraTitle);
+    },
     onSuccess: (data) => {
       console.log('📍 Start tracking response:', data);
 

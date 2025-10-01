@@ -67,10 +67,10 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Session Timer */}
+        {/* Session Timer - only show current session duration */}
         {isTracking && (
           <div className="text-center space-y-2">
-            <LiveTimer size="xl" className="justify-center" />
+            <LiveTimer size="xl" className="justify-center" sessionOnly={true} />
           </div>
         )}
 

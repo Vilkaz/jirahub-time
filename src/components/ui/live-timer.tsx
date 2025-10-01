@@ -7,12 +7,14 @@ interface LiveTimerProps {
   className?: string;
   showSeconds?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  sessionOnly?: boolean; // If true, only show current session time, not accumulated
 }
 
-export const LiveTimer = ({ 
-  className, 
-  showSeconds = true, 
-  size = 'lg' 
+export const LiveTimer = ({
+  className,
+  showSeconds = true,
+  size = 'lg',
+  sessionOnly = false
 }: LiveTimerProps) => {
   const { isTracking, activeSince, todayTotal } = useTimeStore();
   const [currentTime, setCurrentTime] = useState(0);
@@ -21,7 +23,9 @@ export const LiveTimer = ({
     if (isTracking && activeSince) {
       const updateTimer = () => {
         const elapsed = getElapsedTime(activeSince);
-        setCurrentTime(todayTotal + elapsed);
+        // If sessionOnly, show just current session elapsed time
+        // Otherwise, show total including todayTotal
+        setCurrentTime(sessionOnly ? elapsed : todayTotal + elapsed);
       };
 
       // Update immediately
@@ -31,9 +35,9 @@ export const LiveTimer = ({
       const interval = setInterval(updateTimer, 1000);
       return () => clearInterval(interval);
     } else {
-      setCurrentTime(todayTotal);
+      setCurrentTime(sessionOnly ? 0 : todayTotal);
     }
-  }, [isTracking, activeSince, todayTotal]);
+  }, [isTracking, activeSince, todayTotal, sessionOnly]);
 
   const sizeClasses = {
     sm: 'text-lg font-semibold',

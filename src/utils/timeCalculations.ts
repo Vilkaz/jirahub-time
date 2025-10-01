@@ -48,30 +48,16 @@ export function calculateDailySeconds(
   startTime: Date,
   endTime: Date
 ): Record<string, number> {
-  console.log('⏰ ========== CALCULATING DAILY SECONDS ==========');
-  console.log('⏰ Start time:', startTime.toLocaleString());
-  console.log('⏰ End time:', endTime.toLocaleString());
-  console.log('⏰ User timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-  console.log('⏰ Timezone offset (minutes):', -startTime.getTimezoneOffset());
-
   const startDate = formatDate(startTime);
   const endDate = formatDate(endTime);
-
-  console.log('⏰ Start date:', startDate);
-  console.log('⏰ End date:', endDate);
 
   // Simple case: same day
   if (startDate === endDate) {
     const durationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-    console.log('⏰ SAME DAY - Duration:', durationSeconds, 'seconds');
-    console.log('⏰ Result:', { [startDate]: durationSeconds });
-    console.log('⏰ =================================================');
     return { [startDate]: durationSeconds };
   }
 
   // Different days - need to split at midnight
-  console.log('⏰ CROSSING MIDNIGHT - Need to split');
-
   const result: Record<string, number> = {};
   let currentTime = startTime;
 
@@ -79,26 +65,17 @@ export function calculateDailySeconds(
     const currentDate = formatDate(currentTime);
     const nextMidnight = getNextMidnight(currentTime);
 
-    console.log('⏰ Processing day:', currentDate);
-    console.log('⏰   Current time:', currentTime.toLocaleString());
-    console.log('⏰   Next midnight:', nextMidnight.toLocaleString());
-
     // If end time is before next midnight, use end time
     const endOfDay = endTime < nextMidnight ? endTime : nextMidnight;
     const secondsThisDay = Math.floor((endOfDay.getTime() - currentTime.getTime()) / 1000);
 
     if (secondsThisDay > 0) {
       result[currentDate] = secondsThisDay;
-      console.log('⏰   Seconds this day:', secondsThisDay);
     }
 
     // Move to next day
     currentTime = nextMidnight;
   }
-
-  console.log('⏰ FINAL RESULT:', result);
-  console.log('⏰ Total seconds:', Object.values(result).reduce((a, b) => a + b, 0));
-  console.log('⏰ =================================================');
 
   return result;
 }
@@ -170,24 +147,15 @@ export function calculateWeekTotal(trackedTime: Record<string, number>): number 
   const weekStart = getWeekStartDate();
   let total = 0;
 
-  console.log('📅 calculateWeekTotal:', {
-    weekStart: weekStart.toLocaleDateString(),
-    trackedTimeDates: Object.keys(trackedTime),
-  });
-
   for (const [dateStr, seconds] of Object.entries(trackedTime)) {
     const [day, month, year] = dateStr.split('.').map(Number);
     const date = new Date(year, month - 1, day);
     const isInWeek = date >= weekStart;
 
-    console.log(`📅   ${dateStr}: ${seconds}s, date: ${date.toLocaleDateString()}, in week: ${isInWeek}`);
-
     if (isInWeek) {
       total += seconds;
     }
   }
-
-  console.log(`📅 Week total: ${total}s (${(total / 3600).toFixed(2)}h)`);
 
   return total;
 }

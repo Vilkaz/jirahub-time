@@ -75,11 +75,6 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
     });
     const rangeDateStrs = new Set(rangeDates.map(d => formatDate(d)));
 
-    console.log('📊 === PROJECT BREAKDOWN CALCULATION ===');
-    console.log('📊 Total tasks:', tasks.length);
-    console.log('📊 Date range:', dateRange.from, 'to', dateRange.to);
-    console.log('📊 Range includes', rangeDateStrs.size, 'days');
-
     tasks.forEach((task, index) => {
       const trackedTime = task.tracked_time || {};
 
@@ -93,11 +88,6 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
 
       let rangeHours = rangeSeconds / 3600; // Convert seconds to hours
 
-      console.log(`📊 Task ${task.key}:`, {
-        rangeSeconds,
-        rangeHours: rangeHours.toFixed(2),
-      });
-
       // Add current session time if this is the active task and today is in range
       if (isTracking && activeTask?.taskId === task.taskId && activeSince) {
         const todayStr = formatDate(new Date());
@@ -105,26 +95,19 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
           const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
           const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
           rangeHours += currentSessionSeconds / 3600;
-          console.log(`📊   Active task - adding ${currentSessionSeconds}s from current session`);
         }
       }
 
       // Only include tasks with time tracked in selected range
       if (rangeHours > 0) {
-        console.log(`📊   ✅ Including task (${rangeHours.toFixed(2)}h)`);
         taskData.push({
           taskKey: task.key,
           taskTitle: task.title,
           hours: rangeHours,
           color: COLORS[index % COLORS.length],
         });
-      } else {
-        console.log(`📊   ❌ Skipping task (0 hours in range)`);
       }
     });
-
-    console.log('📊 Tasks with time in range:', taskData.length);
-    console.log('📊 =====================================');
 
     // Sort by hours descending
     return taskData.sort((a, b) => b.hours - a.hours);

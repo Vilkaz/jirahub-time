@@ -170,14 +170,24 @@ export function calculateWeekTotal(trackedTime: Record<string, number>): number 
   const weekStart = getWeekStartDate();
   let total = 0;
 
+  console.log('📅 calculateWeekTotal:', {
+    weekStart: weekStart.toLocaleDateString(),
+    trackedTimeDates: Object.keys(trackedTime),
+  });
+
   for (const [dateStr, seconds] of Object.entries(trackedTime)) {
     const [day, month, year] = dateStr.split('.').map(Number);
     const date = new Date(year, month - 1, day);
+    const isInWeek = date >= weekStart;
 
-    if (date >= weekStart) {
+    console.log(`📅   ${dateStr}: ${seconds}s, date: ${date.toLocaleDateString()}, in week: ${isInWeek}`);
+
+    if (isInWeek) {
       total += seconds;
     }
   }
+
+  console.log(`📅 Week total: ${total}s (${(total / 3600).toFixed(2)}h)`);
 
   return total;
 }

@@ -48,27 +48,45 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
       color: string;
     }> = [];
 
+    console.log('📊 === PROJECT BREAKDOWN CALCULATION ===');
+    console.log('📊 Total tasks:', tasks.length);
+
     tasks.forEach((task, index) => {
       const trackedTime = task.tracked_time || {};
-      let weekHours = calculateWeekTotal(trackedTime) / 3600; // Convert seconds to hours
+      const weekSeconds = calculateWeekTotal(trackedTime);
+      let weekHours = weekSeconds / 3600; // Convert seconds to hours
+
+      console.log(`📊 Task ${task.key}:`, {
+        trackedTime,
+        weekSeconds,
+        weekHours: weekHours.toFixed(2),
+        totalSeconds: task.totalSeconds || 0,
+      });
 
       // Add current session time if this is the active task
       if (isTracking && activeTask?.taskId === task.taskId && activeSince) {
         const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
         const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
         weekHours += currentSessionSeconds / 3600;
+        console.log(`📊   Active task - adding ${currentSessionSeconds}s from current session`);
       }
 
       // Only include tasks with time tracked this week
       if (weekHours > 0) {
+        console.log(`📊   ✅ Including task (${weekHours.toFixed(2)}h)`);
         taskData.push({
           taskKey: task.key,
           taskTitle: task.title,
           hours: weekHours,
           color: COLORS[index % COLORS.length],
         });
+      } else {
+        console.log(`📊   ❌ Skipping task (0 hours this week)`);
       }
     });
+
+    console.log('📊 Tasks with time this week:', taskData.length);
+    console.log('📊 =====================================');
 
     // Sort by hours descending
     return taskData.sort((a, b) => b.hours - a.hours);

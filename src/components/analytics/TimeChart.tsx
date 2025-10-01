@@ -1,31 +1,77 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Calendar } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useTasks } from '../../hooks/useTimeTracking';
+import { useTimeStore } from '../../stores/timeStore';
+import { formatDate } from '../../utils/timeCalculations';
 
 interface TimeChartProps {
   className?: string;
-  data?: Array<{
-    day: string;
-    hours: number;
-    date: string;
-  }>;
-  isLoading?: boolean;
 }
 
-// Mock data for demonstration
-const mockWeekData = [
-  { day: 'Mon', hours: 8.5, date: '2025-09-22' },
-  { day: 'Tue', hours: 7.2, date: '2025-09-23' },
-  { day: 'Wed', hours: 9.1, date: '2025-09-24' },
-  { day: 'Thu', hours: 6.8, date: '2025-09-25' },
-  { day: 'Fri', hours: 8.0, date: '2025-09-26' },
-  { day: 'Sat', hours: 0, date: '2025-09-27' },
-  { day: 'Sun', hours: 0, date: '2025-09-28' },
-];
+export const TimeChart = ({ className }: TimeChartProps) => {
+  const { data: tasksData, isLoading } = useTasks();
+  const { isTracking, activeSince, activeTask } = useTimeStore();
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
-export const TimeChart = ({ className, data = mockWeekData, isLoading }: TimeChartProps) => {
+  // Update current time every second when tracking (for real-time chart updates)
+  useEffect(() => {
+    if (isTracking) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isTracking]);
+
+  // Calculate last 7 days data from tracked_time
+  const calculateWeekData = () => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const weekData: Array<{ day: string; hours: number; date: string }> = [];
+
+    // Generate last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = formatDate(date);
+      const dayName = days[date.getDay()];
+
+      weekData.push({
+        day: dayName,
+        hours: 0,
+        date: dateStr,
+      });
+    }
+
+    // Sum up seconds from all tasks for each day
+    const tasks = tasksData?.tasks || [];
+    tasks.forEach(task => {
+      const trackedTime = task.tracked_time || {};
+
+      Object.entries(trackedTime).forEach(([dateStr, seconds]) => {
+        const dayEntry = weekData.find(d => d.date === dateStr);
+        if (dayEntry) {
+          dayEntry.hours += seconds / 3600; // Convert seconds to hours
+        }
+      });
+    });
+
+    // Add current active session time to today
+    if (isTracking && activeSince && activeTask) {
+      const todayEntry = weekData[weekData.length - 1]; // Last entry is today
+      const activeSinceTime = activeSince instanceof Date ? activeSince.getTime() : activeSince;
+      const currentSessionSeconds = Math.floor((currentTime - activeSinceTime) / 1000);
+      todayEntry.hours += currentSessionSeconds / 3600;
+    }
+
+    return weekData;
+  };
+
+  const data = calculateWeekData();
   const totalHours = data.reduce((sum, day) => sum + day.hours, 0);
   const averageHours = totalHours / data.filter(d => d.hours > 0).length || 0;
   const workDays = data.filter(d => d.hours > 0).length;
@@ -135,21 +181,6 @@ export const TimeChart = ({ className, data = mockWeekData, isLoading }: TimeCha
           </div>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Weekly Goal Progress</span>
-            <span className="font-medium text-foreground">
-              {totalHours.toFixed(1)} / 40h
-            </span>
-          </div>
-          <div className="w-full bg-secondary rounded-full h-2">
-            <div 
-              className="bg-gradient-primary h-2 rounded-full transition-all duration-500"
-              style={{ width: `${Math.min((totalHours / 40) * 100, 100)}%` }}
-            />
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

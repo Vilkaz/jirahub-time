@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Play, ExternalLink, Search, Filter, Clock, Timer, Calendar, CalendarDays, Edit, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
+import { LoadingButton } from '../ui/loading-button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
@@ -29,6 +30,7 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<'jira' | 'manual'>('jira');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
 
   const tasks = tasksData?.tasks || [];
 
@@ -97,11 +99,22 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
     return activeTask?.taskId === task.taskId;
   };
 
-  const handleStartTask = (task: Task) => {
-    onTaskSelect?.(task);
+  const handleStartTask = async (task: Task) => {
+    setStartingTaskId(task.taskId);
+    try {
+      onTaskSelect?.(task);
+      // Wait a bit to let the API call complete before resetting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } finally {
+      setStartingTaskId(null);
+    }
   };
 
-  const handleSaveTask = async (taskId: string, sessions: Array<{ date: string; hours: number; minutes: number }>) => {
+  const handleSaveTask = async (
+    taskId: string,
+    sessions: Array<{ date: string; hours: number; minutes: number }>,
+    sapTask?: string
+  ) => {
     // Convert sessions back to tracked_time format
     const tracked_time: Record<string, number> = {};
 
@@ -117,7 +130,7 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
     });
 
     // Call API to update task
-    await apiService.updateTask(taskId, tracked_time);
+    await apiService.updateTask(taskId, tracked_time, sapTask);
 
     // Refetch tasks to get updated data
     refetch();
@@ -396,15 +409,17 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
                   </Button>
 
                   {!isActiveTask(task) && (
-                    <Button
+                    <LoadingButton
                       size="sm"
                       variant={isTracking ? "outline" : "default"}
                       className="text-xs"
                       onClick={() => handleStartTask(task)}
+                      isLoading={startingTaskId === task.taskId}
+                      loadingText="Starting..."
                     >
                       <Play className="h-3 w-3 mr-1" />
                       Start
-                    </Button>
+                    </LoadingButton>
                   )}
 
                   {isActiveTask(task) && (

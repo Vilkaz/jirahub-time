@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Zap, AlertCircle, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '../ui/button';
+import { LoadingButton } from '../ui/loading-button';
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -89,20 +90,17 @@ export const JiraConnectionButton = ({
                 <span>Jira Connected</span>
               </Badge>
             )}
-            <Button
+            <LoadingButton
               variant="ghost"
               size="sm"
               onClick={handleTestConnection}
-              disabled={isTestingConnection}
+              isLoading={isTestingConnection}
+              loadingText="Testing..."
               className="text-xs"
             >
-              {isTestingConnection ? (
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-              ) : (
-                <ExternalLink className="h-3 w-3 mr-1" />
-              )}
+              <ExternalLink className="h-3 w-3 mr-1" />
               Test
-            </Button>
+            </LoadingButton>
             <Button
               variant="ghost"
               size="sm"
@@ -113,20 +111,17 @@ export const JiraConnectionButton = ({
             </Button>
           </>
         ) : (
-          <Button
+          <LoadingButton
             variant="outline"
             size="sm"
             onClick={handleConnect}
-            disabled={isConnecting}
+            isLoading={isConnecting}
+            loadingText="Connecting..."
             className="flex items-center space-x-1"
           >
-            {isConnecting ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Zap className="h-3 w-3" />
-            )}
-            <span>{isConnecting ? 'Connecting...' : 'Connect Jira'}</span>
-          </Button>
+            <Zap className="h-3 w-3" />
+            <span>Connect Jira</span>
+          </LoadingButton>
         )}
       </div>
     );
@@ -193,19 +188,16 @@ export const JiraConnectionButton = ({
       <CardFooter className="pt-4">
         {connection?.isConnected ? (
           <div className="flex w-full space-x-2">
-            <Button
+            <LoadingButton
               variant="outline"
               onClick={handleTestConnection}
-              disabled={isTestingConnection}
+              isLoading={isTestingConnection}
+              loadingText="Testing..."
               className="flex-1"
             >
-              {isTestingConnection ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <ExternalLink className="h-4 w-4 mr-2" />
-              )}
+              <ExternalLink className="h-4 w-4 mr-2" />
               Test Connection
-            </Button>
+            </LoadingButton>
             <Button
               variant="ghost"
               onClick={handleDisconnect}
@@ -215,18 +207,15 @@ export const JiraConnectionButton = ({
             </Button>
           </div>
         ) : (
-          <Button
+          <LoadingButton
             onClick={handleConnect}
-            disabled={isConnecting}
+            isLoading={isConnecting}
+            loadingText="Connecting to Jira..."
             className="w-full"
           >
-            {isConnecting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Zap className="h-4 w-4 mr-2" />
-            )}
-            {isConnecting ? 'Connecting to Jira...' : 'Connect to Jira'}
-          </Button>
+            <Zap className="h-4 w-4 mr-2" />
+            Connect to Jira
+          </LoadingButton>
         )}
       </CardFooter>
     </Card>

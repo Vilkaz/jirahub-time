@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
+import { LoadingButton } from '../ui/loading-button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
@@ -25,7 +26,7 @@ interface EditTaskDialogProps {
   task: Task;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (taskId: string, sessions: TimeSession[]) => Promise<void>;
+  onSave: (taskId: string, sessions: TimeSession[], sapTask?: string) => Promise<void>;
 }
 
 export const EditTaskDialog = ({ task, open, onOpenChange, onSave }: EditTaskDialogProps) => {
@@ -45,6 +46,7 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onSave }: EditTaskDia
     .sort((a, b) => b.date.localeCompare(a.date)); // Sort by date desc
 
   const [sessions, setSessions] = useState<TimeSession[]>(initialSessions);
+  const [sapTask, setSapTask] = useState(task.sapTask || '');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleAddSession = () => {
@@ -73,7 +75,7 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onSave }: EditTaskDia
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(task.taskId, sessions);
+      await onSave(task.taskId, sessions, sapTask.trim() || undefined);
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to save task:', error);
@@ -116,6 +118,22 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onSave }: EditTaskDia
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* SAP Task Section */}
+          <div className="space-y-3 p-4 rounded-lg border bg-muted/50">
+            <Label className="text-sm font-medium">SAP Task</Label>
+            <div className="space-y-2">
+              <Input
+                value={sapTask}
+                onChange={(e) => setSapTask(e.target.value)}
+                placeholder="e.g., PS245-46 - Moro Hub"
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the SAP task identifier for reporting and automation
+              </p>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Time Sessions</Label>
             <Button
@@ -208,10 +226,10 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onSave }: EditTaskDia
             <X className="h-4 w-4 mr-1" />
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <LoadingButton onClick={handleSave} isLoading={isSaving} loadingText="Saving...">
             <Save className="h-4 w-4 mr-1" />
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </Button>
+            Save Changes
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

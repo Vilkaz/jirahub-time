@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
+import { LoadingButton } from '../ui/loading-button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
@@ -19,8 +20,7 @@ interface CreateManualTaskDialogProps {
     taskId: string;
     title: string;
     url?: string;
-    sapProjectId?: string;
-    sapProjectName?: string;
+    sapTask?: string;
   }) => Promise<void>;
 }
 
@@ -32,8 +32,7 @@ export const CreateManualTaskDialog = ({
   const [taskId, setTaskId] = useState('');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [sapProjectId, setSapProjectId] = useState('');
-  const [sapProjectName, setSapProjectName] = useState('');
+  const [sapTask, setSapTask] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,8 +40,7 @@ export const CreateManualTaskDialog = ({
     setTaskId('');
     setTitle('');
     setUrl('');
-    setSapProjectId('');
-    setSapProjectName('');
+    setSapTask('');
     setError('');
   };
 
@@ -70,8 +68,7 @@ export const CreateManualTaskDialog = ({
         taskId: taskId.trim(),
         title: title.trim(),
         url: url.trim() || undefined,
-        sapProjectId: sapProjectId.trim() || undefined,
-        sapProjectName: sapProjectName.trim() || undefined,
+        sapTask: sapTask.trim() || undefined,
       });
       handleClose();
     } catch (err) {
@@ -146,32 +143,18 @@ export const CreateManualTaskDialog = ({
           </div>
 
           <div className="border-t pt-4 space-y-3">
-            <Label className="text-sm font-medium">SAP Project (optional)</Label>
-
+            <Label className="text-sm font-medium">SAP Task (optional)</Label>
             <div className="space-y-2">
-              <Label htmlFor="sapProjectId" className="text-xs text-muted-foreground">
-                Project ID
-              </Label>
               <Input
-                id="sapProjectId"
-                placeholder="e.g., SAP-PRJ-2024-001"
-                value={sapProjectId}
-                onChange={(e) => setSapProjectId(e.target.value)}
+                id="sapTask"
+                placeholder="e.g., PS245-46 - Moro Hub"
+                value={sapTask}
+                onChange={(e) => setSapTask(e.target.value)}
                 disabled={isSaving}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sapProjectName" className="text-xs text-muted-foreground">
-                Project Name
-              </Label>
-              <Input
-                id="sapProjectName"
-                placeholder="e.g., Client Portal Development"
-                value={sapProjectName}
-                onChange={(e) => setSapProjectName(e.target.value)}
-                disabled={isSaving}
-              />
+              <p className="text-xs text-muted-foreground">
+                Enter the SAP task identifier for reporting and automation
+              </p>
             </div>
           </div>
         </div>
@@ -181,10 +164,10 @@ export const CreateManualTaskDialog = ({
             <X className="h-4 w-4 mr-1" />
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <LoadingButton onClick={handleSave} isLoading={isSaving} loadingText="Creating...">
             <Save className="h-4 w-4 mr-1" />
-            {isSaving ? 'Creating...' : 'Create Task'}
-          </Button>
+            Create Task
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

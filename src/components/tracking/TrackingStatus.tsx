@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Play, Square, ExternalLink, Clock, Calendar, CalendarDays } from 'lucide-react';
 import { Button } from '../ui/button';
+import { LoadingButton } from '../ui/loading-button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { LiveTimer } from '../ui/live-timer';
@@ -173,38 +174,32 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
 
         {/* Action Button */}
         <div className="flex justify-center">
-          <Button
+          <LoadingButton
             onClick={handleToggleTracking}
-            disabled={isActionLoading || isLoading}
+            isLoading={isActionLoading || isLoading}
+            loadingText={isStarting ? 'Starting...' : 'Stopping...'}
             size="lg"
             className={cn(
               'w-full max-w-xs h-12 font-semibold transition-all duration-300',
-              isTracking 
-                ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg' 
+              isTracking
+                ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg'
                 : 'btn-success shadow-lg hover:shadow-xl'
             )}
           >
-            {isActionLoading ? (
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-                <span>{isStarting ? 'Starting...' : 'Stopping...'}</span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                {isTracking ? (
-                  <>
-                    <Square className="h-5 w-5" />
-                    <span>Stop Tracking</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-5 w-5" />
-                    <span>Start Tracking</span>
-                  </>
-                )}
-              </div>
-            )}
-          </Button>
+            <div className="flex items-center space-x-2">
+              {isTracking ? (
+                <>
+                  <Square className="h-5 w-5" />
+                  <span>Stop Tracking</span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5" />
+                  <span>Start Tracking</span>
+                </>
+              )}
+            </div>
+          </LoadingButton>
         </div>
       </CardContent>
     </Card>

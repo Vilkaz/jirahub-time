@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Play, Square, ExternalLink, Clock, Calendar, CalendarDays } from 'lucide-react';
+import { Play, Square, ExternalLink, Clock, Calendar, CalendarDays, Save } from 'lucide-react';
 import { Button } from '../ui/button';
 import { LoadingButton } from '../ui/loading-button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -117,19 +117,10 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
     }
   }, [activeTask, tasksData]);
 
-  // Debounce the description save - only save if changed
-  useEffect(() => {
-    if (!isTracking) return;
-
-    // Only save if description has actually changed from last saved
-    if (sessionDescription === lastSavedDescription) return;
-
-    const timeoutId = setTimeout(() => {
-      saveDescription(sessionDescription);
-    }, 1000); // Save 1 second after user stops typing
-
-    return () => clearTimeout(timeoutId);
-  }, [sessionDescription, isTracking, lastSavedDescription, saveDescription]);
+  // Manual save handler for button click
+  const handleSaveDescription = async () => {
+    await saveDescription(sessionDescription);
+  };
 
   // Calculate today and week totals for the active task
   const calculateActiveTaskTotals = () => {
@@ -264,14 +255,9 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
             {/* Session Description */}
             {isTracking && (
               <div className="space-y-2 border-t pt-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="session-description" className="text-sm font-medium">
-                    Session Description
-                  </Label>
-                  {isSavingDescription && (
-                    <span className="text-xs text-muted-foreground">Saving...</span>
-                  )}
-                </div>
+                <Label htmlFor="session-description" className="text-sm font-medium">
+                  Session Description
+                </Label>
                 <Textarea
                   id="session-description"
                   value={sessionDescription}
@@ -280,9 +266,22 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
                   className="text-sm resize-none"
                   rows={3}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Auto-saves as you type. This description will be included in your reports.
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    This description will be included in your reports.
+                  </p>
+                  <LoadingButton
+                    onClick={handleSaveDescription}
+                    isLoading={isSavingDescription}
+                    loadingText="Saving..."
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                  >
+                    <Save className="h-3 w-3 mr-1" />
+                    Save Description
+                  </LoadingButton>
+                </div>
               </div>
             )}
           </div>

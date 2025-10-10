@@ -140,10 +140,18 @@ class ApiService {
   }
 
   // Update Task
-  async updateTask(taskId: string, trackedTime: Record<string, number>): Promise<{ success: boolean; taskId: string; total_seconds: number }> {
+  async updateTask(
+    taskId: string,
+    trackedTime: Record<string, number>,
+    sapTask?: string
+  ): Promise<{ success: boolean; taskId: string; total_seconds: number }> {
+    const body: any = { tracked_time: trackedTime };
+    if (sapTask) {
+      body.sapTask = sapTask;
+    }
     return this.request(`/v1/tasks/${taskId}`, {
       method: 'PUT',
-      body: JSON.stringify({ tracked_time: trackedTime }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -152,8 +160,7 @@ class ApiService {
     taskId: string;
     title: string;
     url?: string;
-    sapProjectId?: string;
-    sapProjectName?: string;
+    sapTask?: string;
   }): Promise<{ success: boolean; taskId: string }> {
     return this.request('/v1/tasks', {
       method: 'POST',

@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { DateRangePickerAdvanced, DateRangePreset } from '../ui/date-range-picker-advanced';
 import { DateRange } from 'react-day-picker';
 import { startOfWeek, endOfWeek, eachDayOfInterval, format as formatDateFns } from 'date-fns';
-import { FileDown, FileJson, Table as TableIcon } from 'lucide-react';
+import { FileDown, Table as TableIcon } from 'lucide-react';
 import { useTasks } from '../../hooks/useTimeTracking';
 import { DailyReportEntry } from '../../types/api';
 import { formatDate } from '../../utils/timeCalculations';
@@ -50,7 +50,21 @@ export const ReportsView = () => {
     tasksData.tasks.forEach(task => {
       const trackedTime = task.tracked_time || {};
 
-      Object.entries(trackedTime).forEach(([dateStr, seconds]) => {
+      Object.entries(trackedTime).forEach(([dateStr, sessionData]) => {
+        // Handle both old format (number) and new format ({seconds, description})
+        let seconds: number;
+        let description: string | undefined;
+
+        if (typeof sessionData === 'number') {
+          // Old format: just seconds
+          seconds = sessionData;
+          description = undefined;
+        } else {
+          // New format: {seconds, description}
+          seconds = sessionData.seconds;
+          description = sessionData.description;
+        }
+
         // Only include dates in the selected range
         if (rangeDateStrs.has(dateStr) && seconds > 0) {
           // Convert DD.MM.YYYY to YYYY-MM-DD for proper sorting
@@ -60,10 +74,10 @@ export const ReportsView = () => {
           entries.push({
             taskKey: task.key,
             taskTitle: task.title,
-            sapProjectId: task.sapProject?.id,
-            sapProjectName: task.sapProject?.name,
+            sapTask: task.sapTask,
             date: isoDate,
             hours: seconds / 3600, // Convert seconds to hours
+            description,
           });
         }
       });
@@ -84,17 +98,17 @@ export const ReportsView = () => {
 
   // Export to CSV
   const exportToCSV = () => {
-    const headers = ['Task Key', 'Task Title', 'SAP Project ID', 'SAP Project Name', 'Date', 'Hours'];
+    const headers = ['Task Key', 'Task Title', 'SAP Task', 'Date', 'Hours', 'Description'];
     const csvRows = [
       headers.join(','),
       ...reportEntries.map(entry =>
         [
           entry.taskKey,
           `"${entry.taskTitle.replace(/"/g, '""')}"`, // Escape quotes in title
-          entry.sapProjectId || '',
-          entry.sapProjectName ? `"${entry.sapProjectName.replace(/"/g, '""')}"` : '',
+          entry.sapTask ? `"${entry.sapTask.replace(/"/g, '""')}"` : '',
           entry.date,
           entry.hours.toFixed(2),
+          entry.description ? `"${entry.description.replace(/"/g, '""')}"` : '',
         ].join(',')
       ),
     ];
@@ -114,30 +128,6 @@ export const ReportsView = () => {
     document.body.removeChild(link);
   };
 
-  // Export to JSON
-  const exportToJSON = () => {
-    const reportData = {
-      startDate: formatDateFns(dateRange?.from || new Date(), 'yyyy-MM-dd'),
-      endDate: formatDateFns(dateRange?.to || new Date(), 'yyyy-MM-dd'),
-      totalHours,
-      totalDays,
-      entries: reportEntries,
-    };
-
-    const jsonContent = JSON.stringify(reportData, null, 2);
-    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    const fileName = `timesheet_${formatDateFns(dateRange?.from || new Date(), 'yyyy-MM-dd')}_to_${formatDateFns(dateRange?.to || new Date(), 'yyyy-MM-dd')}.json`;
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <div className="space-y-6">
@@ -190,14 +180,6 @@ export const ReportsView = () => {
                 <FileDown className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <Button
-                onClick={exportToJSON}
-                disabled={reportEntries.length === 0}
-                variant="outline"
-              >
-                <FileJson className="h-4 w-4 mr-2" />
-                Export JSON
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -237,7 +219,8 @@ export const ReportsView = () => {
                     <TableHead>Date</TableHead>
                     <TableHead>Task Key</TableHead>
                     <TableHead>Task Title</TableHead>
-                    <TableHead>SAP Project</TableHead>
+                    <TableHead>SAP Task</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead className="text-right">Hours</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -254,17 +237,17 @@ export const ReportsView = () => {
                         {entry.taskTitle}
                       </TableCell>
                       <TableCell>
-                        {entry.sapProjectId ? (
-                          <div>
-                            <p className="font-medium text-sm">{entry.sapProjectId}</p>
-                            {entry.sapProjectName && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                {entry.sapProjectName}
-                              </p>
-                            )}
-                          </div>
+                        {entry.sapTask ? (
+                          <span className="font-medium text-sm">{entry.sapTask}</span>
                         ) : (
                           <span className="text-muted-foreground text-sm">Not assigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {entry.description ? (
+                          <span className="text-sm">{entry.description}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm italic">No description</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium">

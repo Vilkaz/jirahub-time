@@ -112,11 +112,11 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
 
   const handleSaveTask = async (
     taskId: string,
-    sessions: Array<{ date: string; hours: number; minutes: number }>,
+    sessions: Array<{ date: string; hours: number; minutes: number; description: string }>,
     sapTask?: string
   ) => {
-    // Convert sessions back to tracked_time format
-    const tracked_time: Record<string, number> = {};
+    // Convert sessions back to tracked_time format with new structure
+    const tracked_time: Record<string, { seconds: number; description: string }> = {};
 
     sessions.forEach(session => {
       // Convert ISO date (2025-10-01) to DD.MM.YYYY format
@@ -125,7 +125,10 @@ export const TaskList = ({ className, onTaskSelect }: TaskListProps) => {
       const totalSeconds = session.hours * 3600 + session.minutes * 60;
 
       if (totalSeconds > 0) {
-        tracked_time[dateKey] = totalSeconds;
+        tracked_time[dateKey] = {
+          seconds: totalSeconds,
+          description: session.description || ''
+        };
       }
     });
 

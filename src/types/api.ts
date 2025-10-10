@@ -7,10 +7,10 @@ export interface User {
   avatar?: string;
 }
 
-export interface SapProject {
-  id: string;
-  name: string;
-  url: string;
+// Session data for a single day
+export interface SessionData {
+  seconds: number;
+  description: string;
 }
 
 export interface Task {
@@ -19,14 +19,14 @@ export interface Task {
   title: string;
   status: string;
   project: string;
-  sapProject?: SapProject;
+  sapTask?: string;  // SAP task identifier (e.g., "PS245-46 - Moro Hub")
   assignee?: string;
   priority?: 'Low' | 'Medium' | 'High' | 'Critical';
   url: string;
   description?: string;
   estimatedHours?: number;
   totalSeconds?: number;
-  tracked_time?: Record<string, number>; // Map of DD.MM.YYYY -> seconds
+  tracked_time?: Record<string, SessionData | number>; // Map of DD.MM.YYYY -> {seconds, description} or legacy number
 }
 
 export interface TimeTotal {
@@ -164,10 +164,10 @@ export interface ProjectTimeData {
 export interface DailyReportEntry {
   taskKey: string;
   taskTitle: string;
-  sapProjectId?: string;
-  sapProjectName?: string;
+  sapTask?: string;  // SAP task identifier
   date: string; // YYYY-MM-DD format
   hours: number;
+  description?: string; // Session description
 }
 
 export interface ReportRequest {

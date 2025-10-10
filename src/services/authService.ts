@@ -21,9 +21,12 @@ class AuthService {
   private baseUrl: string;
 
   constructor() {
-    // Get API base URL from window.CONFIG or fallback
-    this.baseUrl = (window as any).CONFIG?.API_BASE_URL ||
-                   'https://8woyezkzac.execute-api.eu-central-1.amazonaws.com';
+    // Get API base URL from window.CONFIG - MUST be set, no fallback
+    const configUrl = (window as any).CONFIG?.API_BASE_URL;
+    if (!configUrl) {
+      throw new Error('API_BASE_URL not found in window.CONFIG - config.js must be loaded before app initialization');
+    }
+    this.baseUrl = configUrl;
   }
 
   public static getInstance(): AuthService {

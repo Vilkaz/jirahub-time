@@ -79,9 +79,11 @@ export const TimeChart = ({ className }: TimeChartProps) => {
     tasks.forEach(task => {
       const trackedTime = task.tracked_time || {};
 
-      Object.entries(trackedTime).forEach(([dateStr, seconds]) => {
+      Object.entries(trackedTime).forEach(([dateStr, entry]) => {
         const dayEntry = weekData.find(d => d.date === dateStr);
         if (dayEntry) {
+          // Handle both old format (number) and new format (object with seconds)
+          const seconds = typeof entry === 'number' ? entry : entry.seconds;
           dayEntry.hours += seconds / 3600; // Convert seconds to hours
         }
       });

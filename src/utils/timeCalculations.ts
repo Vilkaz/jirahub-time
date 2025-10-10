@@ -135,24 +135,35 @@ export function getCurrentWeekDates(): Date[] {
 /**
  * Calculate total seconds for today from tracked_time map
  */
-export function calculateTodayTotal(trackedTime: Record<string, number>): number {
+export function calculateTodayTotal(trackedTime: Record<string, number | { seconds: number; description: string }>): number {
   const today = getCurrentDateString();
-  return trackedTime[today] || 0;
+  const entry = trackedTime[today];
+
+  if (!entry) return 0;
+
+  // Handle both old format (number) and new format (object with seconds)
+  if (typeof entry === 'number') {
+    return entry;
+  }
+
+  return entry.seconds || 0;
 }
 
 /**
  * Calculate total seconds for this week from tracked_time map
  */
-export function calculateWeekTotal(trackedTime: Record<string, number>): number {
+export function calculateWeekTotal(trackedTime: Record<string, number | { seconds: number; description: string }>): number {
   const weekStart = getWeekStartDate();
   let total = 0;
 
-  for (const [dateStr, seconds] of Object.entries(trackedTime)) {
+  for (const [dateStr, entry] of Object.entries(trackedTime)) {
     const [day, month, year] = dateStr.split('.').map(Number);
     const date = new Date(year, month - 1, day);
     const isInWeek = date >= weekStart;
 
     if (isInWeek) {
+      // Handle both old format (number) and new format (object with seconds)
+      const seconds = typeof entry === 'number' ? entry : entry.seconds;
       total += seconds;
     }
   }

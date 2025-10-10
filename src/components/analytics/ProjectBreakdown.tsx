@@ -80,8 +80,10 @@ export const ProjectBreakdown = ({ className }: ProjectBreakdownProps) => {
 
       // Sum seconds only for dates in the selected range
       let rangeSeconds = 0;
-      Object.entries(trackedTime).forEach(([dateStr, seconds]) => {
+      Object.entries(trackedTime).forEach(([dateStr, entry]) => {
         if (rangeDateStrs.has(dateStr)) {
+          // Handle both old format (number) and new format (object with seconds)
+          const seconds = typeof entry === 'number' ? entry : entry.seconds;
           rangeSeconds += seconds;
         }
       });

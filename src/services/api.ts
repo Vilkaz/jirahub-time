@@ -142,7 +142,7 @@ class ApiService {
   // Update Task
   async updateTask(
     taskId: string,
-    trackedTime: Record<string, number>,
+    trackedTime: Record<string, number | { seconds: number; description: string }>,
     sapTask?: string
   ): Promise<{ success: boolean; taskId: string; total_seconds: number }> {
     const body: any = { tracked_time: trackedTime };

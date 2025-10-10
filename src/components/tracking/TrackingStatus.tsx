@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Play, Square, ExternalLink, Clock, Calendar, CalendarDays } from 'lucide-react';
 import { Button } from '../ui/button';
 import { LoadingButton } from '../ui/loading-button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { Textarea } from '../ui/textarea';
+import { Label } from '../ui/label';
 import { LiveTimer } from '../ui/live-timer';
 import { useTimeTracking, useTasks } from '../../hooks/useTimeTracking';
 import { useTimeStore } from '../../stores/timeStore';
 import { cn } from '../../lib/utils';
 import { calculateTodayTotal, calculateWeekTotal, formatHours } from '../../utils/timeCalculations';
+import { apiService } from '../../services/api';
 
 interface TrackingStatusProps {
   className?: string;
@@ -25,10 +28,21 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
   } = useTimeTracking();
 
   const { isTracking, activeTask, activeSince } = useTimeStore();
-  const { data: tasksData } = useTasks();
+  const { data: tasksData, refetch } = useTasks();
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [sessionDescription, setSessionDescription] = useState('');
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
 
   const isActionLoading = isStarting || isStopping;
+
+  // Get today's date in DD.MM.YYYY format
+  const getTodayKey = () => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
 
   // Update current time every second when tracking (for real-time stats)
   useEffect(() => {
@@ -39,6 +53,75 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
       return () => clearInterval(interval);
     }
   }, [isTracking]);
+
+  // Load current description from task when active task changes
+  useEffect(() => {
+    if (activeTask && tasksData?.tasks) {
+      const task = tasksData.tasks.find(t => t.taskId === activeTask.taskId);
+      if (task && task.tracked_time) {
+        const todayKey = getTodayKey();
+        const todaySession = task.tracked_time[todayKey];
+
+        if (todaySession && typeof todaySession === 'object') {
+          setSessionDescription(todaySession.description || '');
+        } else {
+          setSessionDescription('');
+        }
+      } else {
+        setSessionDescription('');
+      }
+    }
+  }, [activeTask?.taskId, tasksData]);
+
+  // Debounced save function
+  const saveDescription = useCallback(async (description: string) => {
+    if (!activeTask || !tasksData?.tasks) return;
+
+    const task = tasksData.tasks.find(t => t.taskId === activeTask.taskId);
+    if (!task) return;
+
+    setIsSavingDescription(true);
+    try {
+      const todayKey = getTodayKey();
+      const tracked_time = { ...task.tracked_time };
+
+      // Get existing seconds for today or 0
+      const todaySession = tracked_time[todayKey];
+      let seconds = 0;
+
+      if (typeof todaySession === 'object') {
+        seconds = todaySession.seconds;
+      } else if (typeof todaySession === 'number') {
+        seconds = todaySession;
+      }
+
+      // Update with new description
+      tracked_time[todayKey] = {
+        seconds,
+        description
+      };
+
+      await apiService.updateTask(activeTask.taskId, tracked_time, task.sapTask);
+
+      // Refetch to get updated data
+      await refetch();
+    } catch (error) {
+      console.error('Failed to save description:', error);
+    } finally {
+      setIsSavingDescription(false);
+    }
+  }, [activeTask, tasksData, refetch]);
+
+  // Debounce the description save
+  useEffect(() => {
+    if (!isTracking) return;
+
+    const timeoutId = setTimeout(() => {
+      saveDescription(sessionDescription);
+    }, 1000); // Save 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [sessionDescription, isTracking, saveDescription]);
 
   // Calculate today and week totals for the active task
   const calculateActiveTaskTotals = () => {
@@ -167,6 +250,31 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
                   <span className="font-medium">This Week:</span>
                   <span className="text-foreground font-semibold">{formatHours(weekTotal)}</span>
                 </div>
+              </div>
+            )}
+
+            {/* Session Description */}
+            {isTracking && (
+              <div className="space-y-2 border-t pt-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="session-description" className="text-sm font-medium">
+                    Session Description
+                  </Label>
+                  {isSavingDescription && (
+                    <span className="text-xs text-muted-foreground">Saving...</span>
+                  )}
+                </div>
+                <Textarea
+                  id="session-description"
+                  value={sessionDescription}
+                  onChange={(e) => setSessionDescription(e.target.value)}
+                  placeholder="What are you working on?"
+                  className="text-sm resize-none"
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Auto-saves as you type. This description will be included in your reports.
+                </p>
               </div>
             )}
           </div>

@@ -31,6 +31,7 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
   const { data: tasksData, refetch } = useTasks();
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [sessionDescription, setSessionDescription] = useState('');
+  const [lastSavedDescription, setLastSavedDescription] = useState('');
   const [isSavingDescription, setIsSavingDescription] = useState(false);
 
   const isActionLoading = isStarting || isStopping;
@@ -63,12 +64,16 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
         const todaySession = task.tracked_time[todayKey];
 
         if (todaySession && typeof todaySession === 'object') {
-          setSessionDescription(todaySession.description || '');
+          const desc = todaySession.description || '';
+          setSessionDescription(desc);
+          setLastSavedDescription(desc);
         } else {
           setSessionDescription('');
+          setLastSavedDescription('');
         }
       } else {
         setSessionDescription('');
+        setLastSavedDescription('');
       }
     }
   }, [activeTask?.taskId, tasksData]);
@@ -103,25 +108,28 @@ export const TrackingStatus = ({ className }: TrackingStatusProps) => {
 
       await apiService.updateTask(activeTask.taskId, tracked_time, task.sapTask);
 
-      // Refetch to get updated data
-      await refetch();
+      // Update last saved description to prevent re-saving
+      setLastSavedDescription(description);
     } catch (error) {
       console.error('Failed to save description:', error);
     } finally {
       setIsSavingDescription(false);
     }
-  }, [activeTask, tasksData, refetch]);
+  }, [activeTask, tasksData]);
 
-  // Debounce the description save
+  // Debounce the description save - only save if changed
   useEffect(() => {
     if (!isTracking) return;
+
+    // Only save if description has actually changed from last saved
+    if (sessionDescription === lastSavedDescription) return;
 
     const timeoutId = setTimeout(() => {
       saveDescription(sessionDescription);
     }, 1000); // Save 1 second after user stops typing
 
     return () => clearTimeout(timeoutId);
-  }, [sessionDescription, isTracking, saveDescription]);
+  }, [sessionDescription, isTracking, lastSavedDescription, saveDescription]);
 
   // Calculate today and week totals for the active task
   const calculateActiveTaskTotals = () => {
